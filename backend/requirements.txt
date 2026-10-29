@@ -14,7 +14,7 @@ passlib[bcrypt]==1.7.4
 celery==5.4.0
 redis==5.2.1
 google-api-python-client==2.156.0
-google-auth-oauthlib==1.2.1
+google-auth-oauthlib==1.5.0
 cryptography==50.0.0
 pillow==12.3.0
 insightface==1.0.1
