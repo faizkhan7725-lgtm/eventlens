@@ -42,3 +42,6 @@ htmlcov/
 tmp/
 temp/
 *.tmp
+
+frontend/AGENTS.md
+frontend/CLAUDE.md

@@ -14,6 +14,8 @@ from app.database import SessionLocal
 from app.models import Event, FaceEmbedding, Photo, Photographer
 from app.services import drive as drive_service
 from app.services import faces
+from app.services.ai_curation import analyze_photo_with_gemini
+from app.services.storage import get_storage_provider
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +118,8 @@ def process_photo_indexing(photo_id: str) -> None:
         try:
             _run_face_indexing(photo, photographer, db)
         except Exception:
-            logger.exception("Photo indexing failed for %s", photo.drive_file_id)
+            identifier = photo.storage_key or photo.drive_file_id or str(photo.id)
+            logger.exception("Photo indexing failed for %s", identifier)
             photo.processing_status = "failed"
             photo.processed_at = None
             db.commit()
@@ -130,7 +133,11 @@ def process_photo_indexing(photo_id: str) -> None:
 
 
 def _run_face_indexing(photo: Photo, photographer: Photographer, db: Session) -> None:
-    image_bytes = drive_service.download_photo_bytes(db, photographer, photo)
+    if photo.storage_provider in ("local", "s3") and photo.storage_key:
+        image_bytes = get_storage_provider().get_file(photo.storage_key)
+    else:
+        image_bytes = drive_service.download_photo_bytes(db, photographer, photo)
+
     detected_faces = faces.extract_faces(image_bytes)
 
     db.execute(delete(FaceEmbedding).where(FaceEmbedding.photo_id == photo.id))
@@ -157,5 +164,18 @@ def _run_face_indexing(photo: Photo, photographer: Photographer, db: Session) ->
                 face_box=face_box,
             )
         )
+
+    # Content Curation & AI scene analysis
+    try:
+        ai_meta = analyze_photo_with_gemini(image_bytes)
+        photo.scene_description = ai_meta.get("scene_description")
+        photo.ai_tags = ai_meta.get("tags")
+        photo.quality_flags = {
+            "is_blurry": ai_meta.get("is_blurry", False),
+            "has_blink": ai_meta.get("has_blink", False),
+            "quality_rating": ai_meta.get("quality_rating", "good"),
+        }
+    except Exception as exc:
+        logger.warning("Curation metadata skipped: %s", exc)
 
     db.commit()

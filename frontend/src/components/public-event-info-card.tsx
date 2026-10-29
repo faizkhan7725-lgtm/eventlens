@@ -14,9 +14,12 @@ export default function PublicEventInfoCard({ name, photosIndexed, ready, slug }
 
   useEffect(() => {
     const hideCard = () => setVisible(false);
+    window.addEventListener(`novusgrid:search-complete:${slug}`, hideCard);
+    // Backward compatibility with legacy event listeners
     window.addEventListener(`smartgallery:search-complete:${slug}`, hideCard);
 
     return () => {
+      window.removeEventListener(`novusgrid:search-complete:${slug}`, hideCard);
       window.removeEventListener(`smartgallery:search-complete:${slug}`, hideCard);
     };
   }, [slug]);
@@ -25,43 +28,59 @@ export default function PublicEventInfoCard({ name, photosIndexed, ready, slug }
 
   return (
     <div className="lg:sticky lg:top-8">
-      <div className="glass-card rounded-[2rem] p-6 sm:p-8">
-        <p className="inline-flex rounded-full bg-[#24483f]/10 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-[#24483f]">
-          Private event gallery
-        </p>
-        <h1 className="mt-5 break-words text-4xl font-black leading-tight text-[#17201d] sm:text-5xl">
+      <div className="novus-card p-6 sm:p-8 bg-white border border-slate-200">
+        <div className="flex items-center gap-2">
+          <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
+            Private Event Gallery
+          </span>
+        </div>
+
+        <h1 className="mt-4 break-words text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
           {name}
         </h1>
-        <p className="mt-4 text-base leading-7 text-[#5f6762]">
-          Take a quick selfie and SmartGallery will find the event photos
-          where your face appears.
+
+        <p className="mt-3 text-sm sm:text-base leading-relaxed text-slate-600">
+          Capture or upload a quick selfie. NovusGrid AI will scan the event photographs and locate every picture in which you appear.
         </p>
+
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-white/70 p-4">
-            <p className="text-3xl font-black text-[#17201d]">{photosIndexed}</p>
-            <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-[#6f756f]">
-              Photos ready
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900">{photosIndexed}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Photos Indexed
             </p>
           </div>
-          <div className="rounded-2xl bg-white/70 p-4">
-            <p className="text-3xl font-black text-[#17201d]">
-              {ready ? "Live" : "Soon"}
-            </p>
-            <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-[#6f756f]">
-              Status
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <div className="flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${ready ? "bg-emerald-500" : "bg-amber-500"}`} />
+              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+                {ready ? "Active" : "Indexing"}
+              </p>
+            </div>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Gallery Status
             </p>
           </div>
         </div>
-        <div className="mt-6 space-y-3 text-sm text-[#5f6762]">
-          <p>
-            <span className="font-black text-[#17201d]">1.</span> Take or upload a clear selfie.
-          </p>
-          <p>
-            <span className="font-black text-[#17201d]">2.</span> Wait a few seconds while we search.
-          </p>
-          <p>
-            <span className="font-black text-[#17201d]">3.</span> Open and download your matched photos.
-          </p>
+
+        <div className="mt-6 border-t border-slate-100 pt-5 space-y-3 text-xs sm:text-sm text-slate-600">
+          <div className="flex items-start gap-3">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">1</span>
+            <span>Take or upload a clear, well-lit selfie.</span>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">2</span>
+            <span>Wait a few seconds while neural matching runs.</span>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">3</span>
+            <span>Preview in full resolution and download authorized photos.</span>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-lg bg-slate-50 p-3 text-xs text-slate-500 border border-slate-200">
+          🔒 <strong>Privacy Assurance:</strong> Your selfie is analyzed in volatile memory and never stored on our servers.
         </div>
       </div>
     </div>

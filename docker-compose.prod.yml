@@ -1,0 +1,90 @@
+name: eventlens-production
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.2-pg17-bookworm
+    container_name: eventlens_db
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eventlens}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_in_production}
+    volumes:
+      - eventlens_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-eventlens}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: eventlens_redis
+    restart: always
+    volumes:
+      - eventlens_redisdata:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eventlens_api
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change_this_in_production}@db:5432/${POSTGRES_DB:-eventlens}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      STORAGE_BACKEND: local
+      STORAGE_LOCAL_DIR: /app/uploads
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-change_this_production_secret_key_32bytes}
+      ENVIRONMENT: production
+    volumes:
+      - eventlens_uploads:/app/uploads
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eventlens_worker
+    restart: always
+    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change_this_in_production}@db:5432/${POSTGRES_DB:-eventlens}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      STORAGE_BACKEND: local
+      STORAGE_LOCAL_DIR: /app/uploads
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-change_this_production_secret_key_32bytes}
+      ENVIRONMENT: production
+    volumes:
+      - eventlens_uploads:/app/uploads
+
+volumes:
+  eventlens_pgdata:
+  eventlens_redisdata:
+  eventlens_uploads:

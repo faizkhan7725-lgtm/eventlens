@@ -3,25 +3,32 @@
 @tailwind utilities;
 
 :root {
-  --background: #f7f1e8;
-  --foreground: #17201d;
-  --paper: #fffaf1;
-  --ink-soft: #5f6762;
-  --brand: #24483f;
-  --brand-strong: #132b26;
-  --accent: #d97742;
-  --accent-soft: #f7d8bd;
-  --line: #e5d8c3;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-muted: #dbeafe;
+  --secondary: #0f172a;
+  --secondary-hover: #1e293b;
+  --accent: #0ea5e9;
+  --muted: #64748b;
+  --muted-light: #94a3b8;
+  --success: #10b981;
+  --success-bg: #ecfdf5;
+  --warning: #f59e0b;
+  --warning-bg: #fffbeb;
+  --danger: #ef4444;
+  --danger-bg: #fef2f2;
 }
 
 body {
   color: var(--foreground);
-  background:
-    radial-gradient(circle at top left, rgba(217, 119, 66, 0.16), transparent 30rem),
-    radial-gradient(circle at 85% 12%, rgba(36, 72, 63, 0.12), transparent 26rem),
-    linear-gradient(180deg, #fff8ec 0%, #f6efe4 48%, #eef4ef 100%);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  background-color: var(--background);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer utilities {
@@ -29,17 +36,35 @@ body {
     text-wrap: balance;
   }
 
-  .glass-card {
-    background: rgba(255, 250, 241, 0.82);
-    border: 1px solid rgba(229, 216, 195, 0.9);
-    box-shadow: 0 24px 80px rgba(36, 72, 63, 0.12);
-    backdrop-filter: blur(18px);
+  .novus-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .soft-grid {
-    background-image:
-      linear-gradient(rgba(36, 72, 63, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(36, 72, 63, 0.06) 1px, transparent 1px);
-    background-size: 38px 38px;
+  .novus-card-interactive {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .novus-card-interactive:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+    transform: translateY(-2px);
+  }
+
+  .novus-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
   }
 }

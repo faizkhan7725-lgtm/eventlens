@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: eventlens-api
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    region: oregon
+    envVars:
+      - key: APP_ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: EXPOSE_API_DOCS
+        value: "true"
+      - key: FRONTEND_URL
+        value: https://events.novusgrid.io
+      - key: SUPABASE_URL
+        value: https://galhrlewrwrqriathktr.supabase.co
+      - key: SUPABASE_JWT_SECRET
+        value: "7M7r/OmZ4E2s7KdfvCOfH3H5hVvy5FV8m3ftBsdRMREe1UymybgFtcK6fFD9GTn9kN/1lT02+HKl2oSBsGMb1A=="
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhbGhybGV3cndycXJpYXRoa3RyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzI0MTQyOCwiZXhwIjoyMTA4ODE3NDI4fQ.Un5ngY00XKk2N0-EjQop0HfZ-68A7H0Y86axnENETDI"
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true

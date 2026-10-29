@@ -12,7 +12,9 @@ def slugify(value: str) -> str:
     return slug.strip("-")[:100]
 
 
-def normalize_drive_folder_id(value: str) -> str:
+def normalize_drive_folder_id(value: str | None) -> str | None:
+    if not value:
+        return None
     candidate = value.strip()
     match = re.search(r"/folders/([a-zA-Z0-9_-]+)", candidate)
     if match:
@@ -38,7 +40,8 @@ class PhotographerResponse(BaseModel):
 class EventCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     slug: str | None = Field(default=None, max_length=100)
-    drive_folder_id: str = Field(min_length=1, max_length=255)
+    source_type: str = Field(default="direct", max_length=50)
+    drive_folder_id: str | None = Field(default=None, max_length=255)
 
     @field_validator("slug", mode="before")
     @classmethod
@@ -49,9 +52,8 @@ class EventCreate(BaseModel):
 
     @field_validator("drive_folder_id", mode="before")
     @classmethod
-    def normalize_drive_folder(cls, value: str) -> str:
+    def normalize_drive_folder(cls, value: str | None) -> str | None:
         return normalize_drive_folder_id(value)
-
 
 
 class EventSearchSessionResponse(BaseModel):
@@ -64,11 +66,13 @@ class EventSearchSessionResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
 class EventResponse(BaseModel):
     id: uuid.UUID
     name: str
     slug: str
-    drive_folder_id: str
+    source_type: str = "direct"
+    drive_folder_id: str | None = None
     status: str
     photos_total: int = 0
     photos_indexed: int = 0
@@ -93,7 +97,6 @@ class DashboardStatsResponse(BaseModel):
     matches_total: int = 0
 
 
-
 class GuestSearchResponse(BaseModel):
     id: uuid.UUID
     event_id: uuid.UUID
@@ -103,6 +106,7 @@ class GuestSearchResponse(BaseModel):
     guest_email: str | None = None
     match_count: int = 0
     searched_at: datetime
+
 
 class EventListResponse(BaseModel):
     stats: DashboardStatsResponse
@@ -155,3 +159,18 @@ class PublicSearchResponse(BaseModel):
     session_id: uuid.UUID
     match_count: int
     photos: list[PublicPhotoResponse]
+
+
+class PhotoUploadItemResponse(BaseModel):
+    id: uuid.UUID
+    filename: str
+    file_size_bytes: int | None = None
+    processing_status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PhotoUploadResponse(BaseModel):
+    uploaded_count: int
+    photos: list[PhotoUploadItemResponse]

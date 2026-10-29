@@ -103,6 +103,7 @@ def _event_response(db: Session, event: Event) -> EventResponse:
         id=event.id,
         name=event.name,
         slug=event.slug,
+        source_type=getattr(event, "source_type", "direct"),
         drive_folder_id=event.drive_folder_id,
         status=event.status,
         photos_total=photos_total,
@@ -177,6 +178,13 @@ def create_event_model(db: Session, photographer: Photographer, data: EventCreat
     if not preferred_slug:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid event name")
 
+    source_type = data.source_type or "direct"
+    if source_type == "drive" and not data.drive_folder_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Drive folder ID is required for Google Drive events",
+        )
+
     event_id = uuid.uuid4()
     slug = _unique_active_slug(db, preferred_slug, event_id)
 
@@ -185,6 +193,7 @@ def create_event_model(db: Session, photographer: Photographer, data: EventCreat
         photographer_id=photographer.id,
         name=data.name,
         slug=slug,
+        source_type=source_type,
         drive_folder_id=data.drive_folder_id,
     )
     db.add(event)

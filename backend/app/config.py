@@ -1,15 +1,27 @@
+from pathlib import Path
+from urllib.parse import urlparse
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from urllib.parse import urlparse
+
+_backend_dir = Path(__file__).resolve().parent.parent
+_repo_dir = _backend_dir.parent
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(".env", ".env.local"),
+        env_file=(
+            str(_backend_dir / ".env"),
+            str(_backend_dir / ".env.local"),
+            str(_repo_dir / ".env"),
+            str(_repo_dir / ".env.local"),
+            ".env",
+            ".env.local",
+        ),
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
-    app_name: str = "SmartGallery"
+    app_name: str = "NovusGrid Event Photos"
     app_version: str = "0.1.0"
     app_environment: str = "production"
     debug: bool = False
@@ -46,6 +58,33 @@ class Settings(BaseSettings):
     search_session_retention_days: int = 30
 
     frontend_url: str = "http://localhost:3000"
+    cors_origins: str = ""
+
+    @property
+    def allowed_cors_origins(self) -> list[str]:
+        origins = set()
+        if self.frontend_url:
+            origins.add(self.frontend_url.strip().rstrip("/"))
+        if self.cors_origins:
+            for item in self.cors_origins.split(","):
+                cleaned = item.strip().rstrip("/")
+                if cleaned:
+                    origins.add(cleaned)
+        return list(origins) if origins else ["http://localhost:3000"]
+
+    # AI & Gemini Settings
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.8-flash"
+
+    # Storage settings
+    storage_backend: str = "local"
+    storage_local_dir: str = "uploads"
+    max_upload_bytes: int = 25 * 1024 * 1024
+    s3_endpoint_url: str = ""
+    s3_bucket_name: str = ""
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_region_name: str = "auto"
 
     @field_validator("debug", mode="before")
     @classmethod

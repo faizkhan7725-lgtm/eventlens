@@ -1,4 +1,9 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+function getApiBase(): string {
+  const raw = process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:8000/api";
+  const withoutTrailing = raw.replace(/\/+$/, "");
+  return withoutTrailing.endsWith("/api") ? withoutTrailing : `${withoutTrailing}/api`;
+}
+const API_URL = getApiBase();
 
 export type Photographer = {
   id: string;
@@ -16,11 +21,13 @@ export type EventSearchSession = {
   match_count: number;
   searched_at: string;
 };
+
 export type Event = {
   id: string;
   name: string;
   slug: string;
-  drive_folder_id: string;
+  source_type?: string;
+  drive_folder_id?: string | null;
   status: string;
   photos_total: number;
   photos_indexed: number;
@@ -53,6 +60,7 @@ export type GuestSearch = {
   match_count: number;
   searched_at: string;
 };
+
 export type EventListResponse = {
   stats: DashboardStats;
   events: Event[];
@@ -84,6 +92,19 @@ export type DriveFolderListResponse = {
   current_folder_name: string;
   parent_folder_id: string | null;
   folders: DriveFolder[];
+};
+
+export type PhotoUploadItem = {
+  id: string;
+  filename: string;
+  file_size_bytes: number | null;
+  processing_status: string;
+  created_at: string;
+};
+
+export type PhotoUploadResponse = {
+  uploaded_count: number;
+  photos: PhotoUploadItem[];
 };
 
 async function apiFetch<T>(
@@ -136,12 +157,43 @@ export async function listEvents(
 
 export async function createEvent(
   accessToken: string,
-  body: { name: string; slug?: string; drive_folder_id: string }
+  body: {
+    name: string;
+    slug?: string;
+    source_type?: "direct" | "drive";
+    drive_folder_id?: string | null;
+  }
 ) {
   return apiFetch<Event>("/events", accessToken, {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function uploadEventPhotos(
+  accessToken: string,
+  eventId: string,
+  files: File[]
+): Promise<PhotoUploadResponse> {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  const res = await fetch(`${API_URL}/events/${eventId}/photos/upload`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(error.detail ?? "Failed to upload photos");
+  }
+
+  return res.json();
 }
 
 export async function deleteEvent(accessToken: string, eventId: string) {

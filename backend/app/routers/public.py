@@ -8,12 +8,13 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models import Photo
-from app.photo_access import verify_photo_access_token
+from app.models import Photo, SearchSession
+from app.photo_access import create_photo_access_token, verify_photo_access_token
 from app.rate_limit import client_ip, public_search_limiter
-from app.schemas import PublicEventResponse, PublicSearchResponse
+from app.schemas import PublicEventResponse, PublicPhotoResponse, PublicSearchResponse
 from app.services import drive as drive_service
 from app.services import public_search
+from app.services.storage import get_storage_provider
 
 router = APIRouter(prefix="/public", tags=["public"])
 
@@ -86,6 +87,62 @@ async def search_public_event(
     )
 
 
+@router.get("/events/{slug}/search-moments", response_model=PublicSearchResponse)
+def search_event_moments(
+    request: Request,
+    slug: str,
+    q: str,
+    db: Session = Depends(get_db),
+):
+    allowed, retry_after = public_search_limiter.check(client_ip(request))
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many searches. Please wait before trying again.",
+            headers={"Retry-After": str(retry_after)},
+        )
+    query_str = q.strip().lower()
+    if not query_str or len(query_str) < 2:
+        raise HTTPException(status_code=400, detail="Search query must be at least 2 characters")
+
+    event = public_search.get_public_event_by_slug(db, slug)
+
+    pattern = f"%{query_str}%"
+    matched_photos = (
+        db.query(Photo)
+        .filter(
+            Photo.event_id == event.id,
+            Photo.processing_status == "done",
+            (Photo.scene_description.ilike(pattern) | Photo.filename.ilike(pattern)),
+        )
+        .limit(settings.max_search_results)
+        .all()
+    )
+
+    search_session = SearchSession(
+        event_id=event.id,
+        guest_name=f"Search: {query_str[:40]}",
+        match_count=len(matched_photos),
+    )
+    db.add(search_session)
+    db.commit()
+    db.refresh(search_session)
+
+    photos = [
+        PublicPhotoResponse(
+            id=photo.id,
+            access_token=create_photo_access_token(event.id, photo.id, search_session.id),
+        )
+        for photo in matched_photos
+    ]
+
+    return PublicSearchResponse(
+        session_id=search_session.id,
+        match_count=len(photos),
+        photos=photos,
+    )
+
+
 def _authorized_photo(slug: str, photo_id: uuid.UUID, token: str, db: Session) -> Photo:
     event = public_search.get_public_event_by_slug(db, slug)
     photo = (
@@ -93,7 +150,11 @@ def _authorized_photo(slug: str, photo_id: uuid.UUID, token: str, db: Session) -
         .filter(Photo.id == photo_id, Photo.event_id == event.id, Photo.processing_status == "done")
         .first()
     )
-    if photo is None or not photo.drive_url:
+    if photo is None:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    if photo.storage_provider == "drive" and not photo.drive_url:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    if photo.storage_provider in ("local", "s3") and not photo.storage_key:
         raise HTTPException(status_code=404, detail="Photo not found")
     verify_photo_access_token(token, event.id, photo.id)
     return photo
@@ -102,11 +163,20 @@ def _authorized_photo(slug: str, photo_id: uuid.UUID, token: str, db: Session) -
 @router.get("/events/{slug}/photos/{photo_id}/download")
 def download_public_photo(slug: str, photo_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     photo = _authorized_photo(slug, photo_id, token, db)
-    image_bytes = drive_service.download_photo_bytes(db, photo.event.photographer, photo)
+    if photo.storage_provider in ("local", "s3") and photo.storage_key:
+        image_bytes = get_storage_provider().get_file(photo.storage_key)
+        media_type = "image/jpeg"
+        if photo.filename.lower().endswith(".png"):
+            media_type = "image/png"
+        elif photo.filename.lower().endswith(".webp"):
+            media_type = "image/webp"
+    else:
+        image_bytes = drive_service.download_photo_bytes(db, photo.event.photographer, photo)
+        media_type = drive_service.guess_photo_content_type(photo)
     filename = quote(photo.filename, safe="")
     return Response(
         content=image_bytes,
-        media_type=drive_service.guess_photo_content_type(photo),
+        media_type=media_type,
         headers={
             "Cache-Control": "private, no-store",
             "Content-Disposition": f"attachment; filename*=UTF-8''{filename}",
@@ -118,6 +188,25 @@ def download_public_photo(slug: str, photo_id: uuid.UUID, token: str, db: Sessio
 @router.get("/events/{slug}/photos/{photo_id}/thumbnail")
 def preview_public_photo(slug: str, photo_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     photo = _authorized_photo(slug, photo_id, token, db)
+
+    if photo.thumbnail_key:
+        try:
+            image_bytes = get_storage_provider().get_file(photo.thumbnail_key)
+            return Response(
+                content=image_bytes,
+                media_type="image/webp",
+                headers={"Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff"},
+            )
+        except Exception:
+            pass
+
+    if photo.storage_provider in ("local", "s3") and photo.storage_key:
+        image_bytes = get_storage_provider().get_file(photo.storage_key)
+        return Response(
+            content=image_bytes,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff"},
+        )
 
     photographer = photo.event.photographer
     try:

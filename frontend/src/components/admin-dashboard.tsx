@@ -21,6 +21,8 @@ import {
   type Photographer,
 } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
+import DirectPhotoUploader from "@/components/direct-photo-uploader";
+import VenuePrintStudio from "@/components/venue-print-studio";
 
 function progressPercent(event: Event) {
   if (!event.photos_total) return 0;
@@ -29,18 +31,18 @@ function progressPercent(event: Event) {
 
 function eventStatus(event: Event) {
   if (event.status === "archived") {
-    return { label: "Archived", className: "bg-stone-200 text-stone-700" };
+    return { label: "Archived", className: "bg-slate-100 text-slate-700 border border-slate-200" };
   }
   if (event.photos_failed > 0) {
-    return { label: "Needs review", className: "bg-amber-100 text-amber-800" };
+    return { label: "Needs Review", className: "bg-amber-50 text-amber-700 border border-amber-200" };
   }
   if (event.photos_total > 0 && event.photos_indexed === event.photos_total) {
-    return { label: "Guest ready", className: "bg-emerald-100 text-emerald-800" };
+    return { label: "Guest Ready", className: "bg-emerald-50 text-emerald-700 border border-emerald-200" };
   }
   if (event.photos_processing > 0 || event.photos_pending > 0) {
-    return { label: "Indexing", className: "bg-blue-100 text-blue-800" };
+    return { label: "Indexing Photos", className: "bg-blue-50 text-blue-700 border border-blue-200" };
   }
-  return { label: "Setup", className: "bg-stone-200 text-stone-700" };
+  return { label: "Setup Required", className: "bg-slate-100 text-slate-700 border border-slate-200" };
 }
 
 function shortEventId(eventId: string) {
@@ -96,50 +98,50 @@ async function makeEventShareImage(event: Event, qrDataUrl: string): Promise<Blo
     throw new Error("Image export is not available in this browser.");
   }
 
-  context.fillStyle = "#fffaf1";
+  context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#24483f";
+  context.fillStyle = "#0f172a";
   context.fillRect(0, 0, canvas.width, 260);
-  context.fillStyle = "#d97742";
+  context.fillStyle = "#2563eb";
   context.fillRect(0, 250, canvas.width, 12);
 
-  context.fillStyle = "#f7d8bd";
-  context.font = "700 30px Arial, sans-serif";
-  context.fillText("SMART GALLERY EVENT ACCESS", 72, 92);
+  context.fillStyle = "#93c5fd";
+  context.font = "700 28px Arial, sans-serif";
+  context.fillText("NOVUSGRID EVENT PHOTOS", 72, 92);
 
   context.fillStyle = "#ffffff";
-  context.font = "900 62px Arial, sans-serif";
-  wrapCanvasText(context, event.name, 72, 178, 936, 72, 2);
+  context.font = "900 58px Arial, sans-serif";
+  wrapCanvasText(context, event.name, 72, 178, 936, 68, 2);
 
-  context.fillStyle = "#17201d";
-  context.font = "900 42px Arial, sans-serif";
-  context.fillText("Scan to open event gallery", 72, 350);
+  context.fillStyle = "#0f172a";
+  context.font = "900 40px Arial, sans-serif";
+  context.fillText("Scan to open gallery", 72, 350);
 
-  context.fillStyle = "#5f6762";
-  context.font = "500 30px Arial, sans-serif";
-  context.fillText("Guests can open the event page and find photos by selfie.", 72, 398);
+  context.fillStyle = "#64748b";
+  context.font = "500 28px Arial, sans-serif";
+  context.fillText("Guests open the link, snap a selfie, and discover their photos instantly.", 72, 398);
 
   context.fillStyle = "#ffffff";
   context.fillRect(240, 470, 600, 600);
-  context.strokeStyle = "#e5d8c3";
-  context.lineWidth = 8;
+  context.strokeStyle = "#e2e8f0";
+  context.lineWidth = 6;
   context.strokeRect(240, 470, 600, 600);
 
   const qrImage = await loadImage(qrDataUrl);
   context.drawImage(qrImage, 288, 518, 504, 504);
 
-  context.fillStyle = "#f7f1e8";
+  context.fillStyle = "#f8fafc";
   context.fillRect(72, 1138, 936, 124);
-  context.strokeStyle = "#e5d8c3";
+  context.strokeStyle = "#e2e8f0";
   context.lineWidth = 2;
   context.strokeRect(72, 1138, 936, 124);
 
-  context.fillStyle = "#17201d";
-  context.font = "900 30px Arial, sans-serif";
+  context.fillStyle = "#0f172a";
+  context.font = "900 28px Arial, sans-serif";
   context.fillText(`Event ID: ${shortEventId(event.id)}`, 112, 1194);
 
-  context.fillStyle = "#5f6762";
-  context.font = "500 25px Arial, sans-serif";
+  context.fillStyle = "#64748b";
+  context.font = "500 24px Arial, sans-serif";
   wrapCanvasText(context, event.public_url, 112, 1238, 856, 32, 2);
 
   return new Promise((resolve, reject) => {
@@ -152,114 +154,91 @@ async function makeEventShareImage(event: Event, qrDataUrl: string): Promise<Blo
     }, "image/png");
   });
 }
+
 export default function AdminDashboard() {
   const supabase = useMemo(() => createClient(), []);
-  const [photographer, setPhotographer] = useState<Photographer | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [guestSearches, setGuestSearches] = useState<GuestSearch[]>([]);
-  const [eventView, setEventView] = useState<"active" | "archived">("active");
-  const eventViewRef = useRef<"active" | "archived">("active");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [syncingEventId, setSyncingEventId] = useState<string | null>(null);
-  const [reindexingEventId, setReindexingEventId] = useState<string | null>(null);
-  const [drivePickerOpen, setDrivePickerOpen] = useState(false);
-  const [drivePickerLoading, setDrivePickerLoading] = useState(false);
-  const [drivePickerState, setDrivePickerState] = useState<DriveFolderListResponse | null>(null);
-  const [shareEvent, setShareEvent] = useState<Event | null>(null);
-  const [shareQrDataUrl, setShareQrDataUrl] = useState("");
-  const [shareBusyAction, setShareBusyAction] = useState<"share" | "copy" | "download" | null>(null);
-  const [guestSearchesOpen, setGuestSearchesOpen] = useState(false);
-
+  const [photographer, setPhotographer] = useState<Photographer | null>(null);
   const [eventName, setEventName] = useState("");
   const [driveFolderId, setDriveFolderId] = useState("");
   const [selectedFolderName, setSelectedFolderName] = useState("");
+  const [syncingEventId, setSyncingEventId] = useState<string | null>(null);
+  const [reindexingEventId, setReindexingEventId] = useState<string | null>(null);
+  const [shareEvent, setShareEvent] = useState<Event | null>(null);
+  const [shareQrDataUrl, setShareQrDataUrl] = useState<string | null>(null);
+  const [shareBusyAction, setShareBusyAction] = useState<"copy" | "download" | "share" | null>(null);
+  const [drivePickerOpen, setDrivePickerOpen] = useState(false);
+  const [drivePickerLoading, setDrivePickerLoading] = useState(false);
+  const [drivePickerState, setDrivePickerState] = useState<DriveFolderListResponse | null>(null);
+  const [guestSearchesOpen, setGuestSearchesOpen] = useState(false);
+  const [eventView, setEventView] = useState<"active" | "archived">("active");
+  const [sourceType, setSourceType] = useState<"direct" | "drive">("direct");
+  const [uploadModalEvent, setUploadModalEvent] = useState<Event | null>(null);
+  const [sessionToken, setSessionToken] = useState<string>("");
 
-  const readyPercent = useMemo(() => {
-    if (!stats?.photos_total) return 0;
-    return Math.round((stats.photos_indexed / stats.photos_total) * 100);
-  }, [stats]);
+  const syncInFlightRef = useRef(false);
 
-  const hasActiveIndexing = useMemo(
-    () => events.some((event) => event.photos_pending > 0 || event.photos_processing > 0),
-    [events]
-  );
+  const refreshEventData = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      setPhotographer(null);
+      setEvents([]);
+      setGuestSearches([]);
+      setStats(null);
+      return;
+    }
 
-  const refreshEventData = useCallback(
-    async (silent = false, statusOverride?: "active" | "archived") => {
+    try {
+      setSessionToken(session.access_token);
+      const data = await listEvents(session.access_token, eventView);
+      setEvents(data.events);
+      setGuestSearches(data.guest_searches);
+      setStats(data.stats);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load events");
+    }
+  }, [eventView, supabase]);
+
+  const loadDashboard = useCallback(async () => {
+    if (syncInFlightRef.current) return;
+    syncInFlightRef.current = true;
+    try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        if (!silent) {
-          setError("No active session. Please sign in again.");
-        }
+        setPhotographer(null);
+        setEvents([]);
+        setGuestSearches([]);
+        setStats(null);
+        setLoading(false);
         return;
       }
 
-      try {
-        const eventData = await listEvents(session.access_token, statusOverride ?? eventViewRef.current);
-        setStats(eventData.stats);
-        setEvents(eventData.events);
-        setGuestSearches(eventData.guest_searches);
-      } catch (err) {
-        if (!silent) {
-          setError(err instanceof Error ? err.message : "Failed to refresh dashboard");
-        }
-      }
-    },
-    [supabase.auth]
-  );
+      const sessionWithProvider = session as typeof session & {
+        provider_token?: string;
+        provider_refresh_token?: string;
+      };
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setNotice(null);
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      setPhotographer(null);
-      setStats(null);
-      setEvents([]);
-      setGuestSearches([]);
-      setLoading(false);
-      return;
-    }
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-      setError("No active session. Please sign in again.");
-      setLoading(false);
-      return;
-    }
-
-    const sessionWithProvider = session as typeof session & {
-      provider_token?: string;
-      provider_refresh_token?: string;
-    };
-
-    try {
       const profile = await syncProfile(session.access_token, {
         provider_token: sessionWithProvider.provider_token,
         provider_refresh_token: sessionWithProvider.provider_refresh_token,
       });
       setPhotographer(profile);
-
       await refreshEventData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard");
     } finally {
+      syncInFlightRef.current = false;
       setLoading(false);
     }
   }, [refreshEventData, supabase.auth]);
@@ -269,102 +248,32 @@ export default function AdminDashboard() {
   }, [loadDashboard]);
 
   useEffect(() => {
-    eventViewRef.current = eventView;
-    if (photographer) {
-      void refreshEventData(true, eventView);
-    }
-  }, [eventView, photographer, refreshEventData]);
-
-  useEffect(() => {
-    if (!photographer) return;
-
-    const refreshIfVisible = () => {
-      if (!document.hidden) {
-        void refreshEventData(true);
-      }
-    };
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        void refreshEventData(true);
-      }
-    };
-    const intervalId = window.setInterval(refreshIfVisible, hasActiveIndexing ? 3000 : 15000);
-
-    window.addEventListener("focus", refreshIfVisible);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshIfVisible);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [hasActiveIndexing, photographer, refreshEventData]);
-
-  useEffect(() => {
-    if (!drivePickerOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setDrivePickerOpen(false);
-      }
-    };
-
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [drivePickerOpen]);
-
-  useEffect(() => {
     if (!shareEvent) {
-      setShareQrDataUrl("");
+      setShareQrDataUrl(null);
+      setShareBusyAction(null);
       return;
     }
 
-    let cancelled = false;
+    let active = true;
     QRCode.toDataURL(shareEvent.public_url, {
-      errorCorrectionLevel: "M",
-      margin: 2,
-      scale: 10,
+      margin: 1,
+      width: 480,
       color: {
-        dark: "#17201d",
+        dark: "#0f172a",
         light: "#ffffff",
       },
     })
       .then((dataUrl) => {
-        if (!cancelled) {
-          setShareQrDataUrl(dataUrl);
-        }
+        if (active) setShareQrDataUrl(dataUrl);
       })
-      .catch(() => {
-        if (!cancelled) {
-          setError("Could not generate QR code for this event.");
+      .catch((err) => {
+        if (active) {
+          setError(err instanceof Error ? err.message : "Could not generate QR code");
         }
       });
 
     return () => {
-      cancelled = true;
-    };
-  }, [shareEvent]);
-
-  useEffect(() => {
-    if (!shareEvent) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setShareEvent(null);
-      }
-    };
-
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", handleKeyDown);
+      active = false;
     };
   }, [shareEvent]);
 
@@ -373,15 +282,15 @@ export default function AdminDashboard() {
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        scopes:
-          "https://www.googleapis.com/auth/drive.readonly email profile openid",
-        redirectTo: `${window.location.origin}/auth/callback?next=/admin`,
+        redirectTo: `${window.location.origin}/auth/callback`,
+        scopes: "openid email profile https://www.googleapis.com/auth/drive.readonly",
         queryParams: {
           access_type: "offline",
           prompt: "consent",
         },
       },
     });
+
     if (signInError) {
       setError(signInError.message);
     }
@@ -390,8 +299,10 @@ export default function AdminDashboard() {
   async function handleSignOut() {
     await supabase.auth.signOut();
     setPhotographer(null);
-    setStats(null);
     setEvents([]);
+    setGuestSearches([]);
+    setStats(null);
+    setNotice("Signed out successfully.");
   }
 
   async function handleCreateEvent(e: React.FormEvent) {
@@ -404,17 +315,23 @@ export default function AdminDashboard() {
     setCreating(true);
     setError(null);
     setNotice(null);
+
     try {
-      await createEvent(session.access_token, {
-        name: eventName,
-        drive_folder_id: driveFolderId,
+      const created = await createEvent(session.access_token, {
+        name: eventName.trim(),
+        source_type: sourceType,
+        drive_folder_id: sourceType === "drive" ? driveFolderId.trim() : null,
       });
       setEventName("");
       setDriveFolderId("");
       setSelectedFolderName("");
-      setEventView("active");
-      await refreshEventData(false, "active");
-      setNotice("Event created. Photos are syncing and indexing automatically.");
+      await refreshEventData();
+      if (sourceType === "direct") {
+        setNotice("Event created! Select or drop your photos now to start indexing.");
+        setUploadModalEvent(created);
+      } else {
+        setNotice("Event created successfully! Initial sync and indexing jobs queued.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create event");
     } finally {
@@ -423,6 +340,9 @@ export default function AdminDashboard() {
   }
 
   async function handleDeleteEvent(eventId: string) {
+    const confirmed = window.confirm("Archive this event? Guests will no longer be able to search it.");
+    if (!confirmed) return;
+
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -431,15 +351,13 @@ export default function AdminDashboard() {
     try {
       await deleteEvent(session.access_token, eventId);
       await refreshEventData();
-      setNotice("Event archived. You can restore or permanently delete it from Archived.");
+      setNotice("Event archived.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete event");
+      setError(err instanceof Error ? err.message : "Failed to archive event");
     }
   }
 
   async function handleDeleteGuestSearch(sessionId: string) {
-    const confirmed = window.confirm("Delete this guest's contact and search record?");
-    if (!confirmed) return;
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -471,7 +389,7 @@ export default function AdminDashboard() {
 
   async function handlePermanentDeleteEvent(eventId: string) {
     const confirmed = window.confirm(
-      "Permanently delete this archived event and all synced photo records/search history? This cannot be undone."
+      "Permanently delete this archived event and all photo records/search history? This cannot be undone."
     );
     if (!confirmed) return;
 
@@ -523,7 +441,7 @@ export default function AdminDashboard() {
     try {
       const result = await reindexEvent(session.access_token, eventId);
       await refreshEventData();
-      setNotice(`Queued ${result.queued} photos for full reindex. Keep the Celery worker running.`);
+      setNotice(`Queued ${result.queued} photos for full reindex.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to queue photo indexing");
     } finally {
@@ -558,8 +476,12 @@ export default function AdminDashboard() {
   }
 
   async function copyEventLink(url: string) {
-    await navigator.clipboard.writeText(url);
-    setNotice("Event link copied.");
+    try {
+      await navigator.clipboard.writeText(url);
+      setNotice("Event link copied to clipboard.");
+    } catch {
+      setError("Could not copy link automatically.");
+    }
   }
 
   async function downloadEventQr(event: Event) {
@@ -572,7 +494,7 @@ export default function AdminDashboard() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${event.slug}-qr.png`;
+      link.download = `${event.slug}-novusgrid-qr.png`;
       link.click();
       URL.revokeObjectURL(url);
       setNotice("Event QR image downloaded.");
@@ -590,16 +512,12 @@ export default function AdminDashboard() {
     setError(null);
     try {
       const blob = await makeEventShareImage(event, shareQrDataUrl);
-      const clipboard = navigator.clipboard as Clipboard & {
-        write?: (items: ClipboardItem[]) => Promise<void>;
-      };
-      if (!clipboard.write || typeof ClipboardItem === "undefined") {
-        await copyEventLink(event.public_url);
-        setNotice("Image clipboard is not supported here, so the event link was copied.");
-        return;
+      const clipboard = navigator.clipboard;
+      if (!clipboard?.write) {
+        throw new Error("Copying images to clipboard is not supported in this browser.");
       }
       await clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-      setNotice("Event QR image copied.");
+      setNotice("Event QR image copied to clipboard.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to copy QR image");
     } finally {
@@ -607,45 +525,18 @@ export default function AdminDashboard() {
     }
   }
 
-  async function shareEventQr(event: Event) {
-    if (!shareQrDataUrl) return;
-
-    setShareBusyAction("share");
-    setError(null);
-    try {
-      const blob = await makeEventShareImage(event, shareQrDataUrl);
-      const file = new File([blob], `${event.slug}-qr.png`, { type: "image/png" });
-      const shareData = {
-        title: event.name,
-        text: `Scan this QR code to open ${event.name}.`,
-        url: event.public_url,
-        files: [file],
-      };
-
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share(shareData);
-        setNotice("Event QR image shared.");
-        return;
-      }
-
-      await copyEventLink(event.public_url);
-      setNotice("Native image sharing is not available here, so the event link was copied.");
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setError(err instanceof Error ? err.message : "Failed to share QR image");
-    } finally {
-      setShareBusyAction(null);
-    }
-  }
+  const readyPercent = useMemo(() => {
+    if (!stats || !stats.photos_total) return 0;
+    return Math.round((stats.photos_indexed / stats.photos_total) * 100);
+  }, [stats]);
 
   if (loading) {
     return (
-      <div className="mx-auto flex min-h-[70vh] max-w-6xl items-center justify-center px-5">
-        <div className="glass-card rounded-[2rem] px-8 py-6 text-center">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#d97742]">
-            Loading studio
-          </p>
-          <p className="mt-3 text-sm text-[#5f6762]">Preparing your event workspace...</p>
+      <div className="mx-auto flex min-h-[70vh] max-w-7xl items-center justify-center px-6">
+        <div className="novus-card p-8 text-center bg-white">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mb-3" />
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-600">Loading Workspace</p>
+          <p className="mt-1 text-sm text-slate-500">Connecting to NovusGrid Event Studio...</p>
         </div>
       </div>
     );
@@ -653,46 +544,65 @@ export default function AdminDashboard() {
 
   if (!photographer) {
     return (
-      <div className="mx-auto grid min-h-[82vh] max-w-6xl items-center gap-8 px-5 py-12 sm:px-6 lg:grid-cols-[1fr_0.9fr]">
+      <div className="mx-auto grid min-h-[82vh] max-w-7xl items-center gap-12 px-6 py-12 lg:grid-cols-2">
         <div>
-          <p className="mb-5 inline-flex rounded-full bg-[#24483f]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-[#24483f]">
-            Photographer access
-          </p>
-          <h1 className="text-balance text-5xl font-black leading-tight text-[#17201d] sm:text-6xl">
-            Turn a Drive folder into a client-ready photo finder.
+          <span className="novus-badge bg-blue-50 text-blue-700 border border-blue-200">
+            Studio Photographer Portal
+          </span>
+          <h1 className="mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+            Deliver event galleries guests can search by selfie.
           </h1>
-          <p className="mt-5 max-w-xl text-lg leading-8 text-[#5f6762]">
-            Sign in with Google, choose your event folder, and share one clean
-            link where guests can find their photos by selfie.
+          <p className="mt-4 text-base text-slate-600 leading-relaxed max-w-xl">
+            Connect your photography portfolio, index high-resolution galleries automatically, and share private guest links or venue QR codes.
           </p>
+
           {error && (
-            <p className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               {error}
-            </p>
+            </div>
           )}
-          <button
-            onClick={handleSignIn}
-            className="mt-8 rounded-full bg-[#24483f] px-7 py-4 text-sm font-black text-white shadow-xl shadow-[#24483f]/20 transition hover:bg-[#132b26]"
-          >
-            Continue with Google
-          </button>
+
+          <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
+            <button
+              onClick={handleSignIn}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Sign In with Google</span>
+            </button>
+          </div>
         </div>
-        <div className="glass-card rounded-[2rem] p-6">
-          <div className="rounded-[1.5rem] bg-[#17201d] p-6 text-white">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#f7d8bd]">
-              MVP workflow
-            </p>
+
+        <div className="novus-card p-8 bg-white border border-slate-200">
+          <div className="rounded-xl bg-slate-900 text-white p-6">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-400">Studio Onboarding</span>
             <div className="mt-6 space-y-4">
-              {["Connect Google Drive", "Sync and index event photos", "Share the private guest link"].map(
-                (item, index) => (
-                  <div key={item} className="flex gap-4 rounded-2xl bg-white/10 p-4">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-[#17201d]">
-                      {index + 1}
-                    </span>
-                    <p className="text-sm font-bold text-white/90">{item}</p>
-                  </div>
-                )
-              )}
+              <div className="flex gap-4 items-start">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">1</span>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Connect Google Drive</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Link your event delivery folders or client archives.</p>
+                </div>
+              </div>
+              <div className="flex gap-4 items-start">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">2</span>
+                <div>
+                  <h4 className="text-sm font-bold text-white">AI Neural Face Indexing</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Automated face extraction & 512-dim vector generation.</p>
+                </div>
+              </div>
+              <div className="flex gap-4 items-start">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">3</span>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Share Venue QR Cards</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Guests snap a selfie to receive their photos on the event day.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -701,360 +611,345 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="soft-grid mx-auto max-w-6xl px-5 py-8 sm:px-6 sm:py-10">
-      <section className="mb-8 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+    <main className="mx-auto max-w-7xl px-6 py-8">
+      {/* Studio Banner */}
+      <section className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
-          <p className="inline-flex rounded-full bg-[#24483f]/10 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-[#24483f]">
-            Your event command center
-          </p>
-          <p className="mt-3 ml-2 break-words text-sm font-medium text-[#5f6762]">
-            {photographer.name} - {photographer.email}
-            {!photographer.has_drive_access && (
-              <span className="ml-2 text-amber-700">
-                Drive access needs reconnect.
-              </span>
-            )}
+          <span className="novus-badge bg-blue-50 text-blue-700 border border-blue-200">
+            Studio Command Center
+          </span>
+          <h2 className="mt-2 text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {photographer.name}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            {photographer.email} • {photographer.has_drive_access ? "Google Drive Connected" : "Drive Access Pending"}
           </p>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="w-fit rounded-full border border-[#d7c8af] bg-white/70 px-5 py-3 text-sm font-bold text-[#24483f] transition hover:border-[#24483f] hover:bg-white"
-        >
-          Sign out
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setGuestSearchesOpen(true)}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            Guest Audit Log ({guestSearches.length})
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            Sign Out
+          </button>
+        </div>
       </section>
 
       {error && (
-        <p className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
-        </p>
+        </div>
       )}
 
       {notice && (
-        <p className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+        <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
           {notice}
-        </p>
+        </div>
       )}
 
+      {/* KPI Stats Overview */}
       {stats && (
-        <section className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            ["Events", stats.events_count, `${stats.ready_events_count} ready for guests`],
-            ["Indexed", stats.photos_indexed, `${stats.photos_total} synced photos`],
-            ["Searches", stats.searches_total, "Guest searches completed"],
-            ["Matches", stats.matches_total, "Photos returned to guests"],
-          ].map(([label, value, helper]) => (
-            <div key={label} className="glass-card rounded-[1.5rem] p-5">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d97742]">
-                {label}
-              </p>
-              <p className="mt-3 text-4xl font-black text-[#17201d]">{value}</p>
-              <p className="mt-2 text-sm font-medium text-[#5f6762]">{helper}</p>
-            </div>
-          ))}
-          <div className="glass-card rounded-[1.5rem] p-5 sm:col-span-2 xl:col-span-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d97742]">
-                  Guest searches
-                </p>
-                <p className="mt-2 text-sm font-medium text-[#5f6762]">
-                  {guestSearches.length} guest search records in the current {eventView} view.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setGuestSearchesOpen(true)}
-                className="w-full rounded-full bg-[#24483f] px-5 py-3 text-sm font-black text-white transition hover:bg-[#132b26] disabled:cursor-not-allowed disabled:bg-[#c8c1b6] sm:w-auto"
-                disabled={guestSearches.length === 0}
-              >
-                View all guests
-              </button>
-            </div>
+        <section className="mb-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="novus-card p-5 bg-white border border-slate-200">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Active Events</span>
+            <p className="mt-2 text-3xl font-extrabold text-slate-900">{stats.events_count}</p>
+            <p className="mt-1 text-xs text-slate-500">{stats.ready_events_count} ready for guests</p>
           </div>
-          <div className="glass-card rounded-[1.5rem] p-5 sm:col-span-2 xl:col-span-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d97742]">
-                  Overall readiness
-                </p>
-                <p className="mt-2 text-sm font-medium text-[#5f6762]">
-                  {readyPercent}% of synced photos are indexed.
-                </p>
-              </div>
-              <p className="text-3xl font-black text-[#17201d]">{readyPercent}%</p>
-            </div>
-            <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#e5d8c3]">
-              <div
-                className="h-full rounded-full bg-[#24483f]"
-                style={{ width: `${readyPercent}%` }}
-              />
-            </div>
+
+          <div className="novus-card p-5 bg-white border border-slate-200">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Indexed Photos</span>
+            <p className="mt-2 text-3xl font-extrabold text-slate-900">{stats.photos_indexed}</p>
+            <p className="mt-1 text-xs text-slate-500">of {stats.photos_total} total photos ({readyPercent}%)</p>
+          </div>
+
+          <div className="novus-card p-5 bg-white border border-slate-200">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Guest Searches</span>
+            <p className="mt-2 text-3xl font-extrabold text-slate-900">{stats.searches_total}</p>
+            <p className="mt-1 text-xs text-slate-500">Selfie queries executed</p>
+          </div>
+
+          <div className="novus-card p-5 bg-white border border-slate-200">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Delivered Matches</span>
+            <p className="mt-2 text-3xl font-extrabold text-slate-900">{stats.matches_total}</p>
+            <p className="mt-1 text-xs text-slate-500">Photos returned to guests</p>
           </div>
         </section>
       )}
 
-      <section className="mb-10 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <form
-          onSubmit={handleCreateEvent}
-          className="glass-card rounded-[2rem] p-5 sm:p-6"
-        >
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d97742]">
-            New event
-          </p>
-          <h2 className="mt-3 text-2xl font-black text-[#17201d]">
-            Create a shareable gallery
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-[#5f6762]">
-            Pick a Drive folder with event photos. After creation, sync and index
-            photos from the event card.
+      {/* Create Event & Checklist */}
+      <section className="mb-10 grid gap-6 lg:grid-cols-2">
+        <form onSubmit={handleCreateEvent} className="novus-card p-6 bg-white border border-slate-200">
+          <span className="novus-badge bg-blue-50 text-blue-700 border border-blue-200">New Event Gallery</span>
+          <h3 className="mt-2 text-xl font-bold text-slate-900">Create & Index Gallery</h3>
+          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+            Specify an event name and connect a Google Drive folder containing photos.
           </p>
 
           <div className="mt-5 space-y-4">
+            {/* Mobile-First Source Switcher */}
             <div>
-              <label className="mb-2 block text-sm font-black text-[#17201d]">
-                Event name
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Photo Ingestion Mode
               </label>
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setSourceType("direct")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${
+                    sourceType === "direct"
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span>📸</span>
+                  <span>Direct Upload</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSourceType("drive")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${
+                    sourceType === "drive"
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span>📁</span>
+                  <span>Google Drive</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Event Name</label>
               <input
                 type="text"
                 required
                 value={eventName}
                 onChange={(e) => setEventName(e.target.value)}
-                placeholder="Wedding - Sharma Family"
-                className="w-full rounded-2xl border border-[#d7c8af] bg-white/80 px-4 py-3 text-sm font-medium outline-none transition placeholder:text-[#a8a094] focus:border-[#24483f] focus:ring-4 focus:ring-[#24483f]/10"
+                placeholder="e.g. Rohan & Neha Wedding"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
               />
             </div>
-            <div>
-              <label className="mb-2 block text-sm font-black text-[#17201d]">
-                Google Drive folder
-              </label>
-              <input
-                type="text"
-                required
-                value={driveFolderId}
-                onChange={(e) => {
-                  setDriveFolderId(e.target.value);
-                  if (selectedFolderName) {
-                    setSelectedFolderName("");
-                  }
-                }}
-                placeholder="Paste folder ID or browse Drive"
-                className="w-full rounded-2xl border border-[#d7c8af] bg-white/80 px-4 py-3 text-sm font-medium outline-none transition placeholder:text-[#a8a094] focus:border-[#24483f] focus:ring-4 focus:ring-[#24483f]/10"
-              />
-              <div className="mt-3 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => loadDriveFolders()}
-                  disabled={drivePickerLoading}
-                  className="rounded-full border border-[#d7c8af] bg-white/70 px-4 py-2 text-sm font-black text-[#24483f] transition hover:border-[#24483f] disabled:opacity-50"
-                >
-                  {drivePickerLoading ? "Loading folders..." : "Browse Drive"}
-                </button>
-                {selectedFolderName && (
-                  <p className="self-center text-sm font-medium text-[#5f6762]">
-                    Selected: <span className="font-black text-[#17201d]">{selectedFolderName}</span>
-                  </p>
-                )}
+
+            {sourceType === "direct" ? (
+              <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3.5 text-xs text-blue-900">
+                <p className="font-bold flex items-center gap-1.5">
+                  <span>⚡</span> Direct Upload Enabled
+                </p>
+                <p className="mt-1 text-slate-600 leading-relaxed">
+                  Upload directly from your phone camera, mobile gallery, or laptop. No Google Drive setup required.
+                </p>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Google Drive Folder</label>
+                <input
+                  type="text"
+                  required
+                  value={driveFolderId}
+                  onChange={(e) => {
+                    setDriveFolderId(e.target.value);
+                    if (selectedFolderName) setSelectedFolderName("");
+                  }}
+                  placeholder="Paste Drive Folder ID or URL"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                />
+                <div className="mt-2.5 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => loadDriveFolders()}
+                    disabled={drivePickerLoading}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    {drivePickerLoading ? "Loading..." : "Browse Google Drive"}
+                  </button>
+                  {selectedFolderName && (
+                    <span className="text-xs text-slate-600 font-medium">
+                      Folder: <strong className="text-slate-900">{selectedFolderName}</strong>
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <button
             type="submit"
             disabled={creating}
-            className="mt-5 w-full rounded-full bg-[#24483f] px-5 py-4 text-sm font-black text-white shadow-xl shadow-[#24483f]/15 transition hover:bg-[#132b26] disabled:opacity-50 sm:w-auto"
+            className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 disabled:bg-slate-300"
           >
-            {creating ? "Creating..." : "Create event"}
+            {creating ? "Creating & Syncing..." : "Create Event"}
           </button>
         </form>
 
-        <div className="glass-card rounded-[2rem] p-5 sm:p-6">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d97742]">
-            Launch checklist
-          </p>
-          <h2 className="mt-3 text-2xl font-black text-[#17201d]">
-            What makes an event guest-ready
-          </h2>
-          <div className="mt-5 space-y-3">
-            {[
-              "Drive folder selected",
-              "Photos synced from Google Drive",
-              "Indexing complete or mostly complete",
-              "Event QR code shared with guests",
-            ].map((item, index) => (
-              <div key={item} className="flex gap-3 rounded-2xl bg-white/65 p-4">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#24483f] text-sm font-black text-white">
-                  {index + 1}
-                </span>
-                <p className="text-sm font-bold text-[#5f6762]">{item}</p>
+        <div className="novus-card p-6 bg-white border border-slate-200 flex flex-col justify-between">
+          <div>
+            <span className="novus-badge bg-slate-100 text-slate-700 border border-slate-200">
+              Pro Studio Standards
+            </span>
+            <h3 className="mt-2 text-xl font-bold text-slate-900">Event Readiness Blueprint</h3>
+            <div className="mt-5 space-y-3">
+              <div className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">1</span>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900">High-Resolution Originals</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">Upload JPEG/PNG/WebP portraits. Clear lighting improves match precision.</p>
+                </div>
               </div>
-            ))}
+              <div className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">2</span>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900">Background Face Vectorizing</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">Celery workers compute 512-dim face embeddings stored securely in pgvector.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">3</span>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900">Venue Tent Card Export</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">Download print-ready QR cards for display on event tables and signage.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section>
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      {/* Events Management Grid */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d97742]">
-              Events
-            </p>
-            <h2 className="mt-2 text-3xl font-black text-[#17201d]">
-              Client galleries
-            </h2>
+            <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Client Event Galleries</h3>
+            <p className="text-xs text-slate-500">Manage galleries, trigger re-indexing, and configure QR sharing.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm font-medium text-[#5f6762]">
-              {eventView === "active"
-                ? "Sync, index, and share each gallery from here."
-                : "Restore old galleries or permanently remove archived records."}
-            </p>
-            <div className="rounded-full border border-[#d7c8af] bg-white/70 p-1">
-              {(["active", "archived"] as const).map((view) => (
-                <button
-                  key={view}
-                  type="button"
-                  onClick={() => setEventView(view)}
-                  className={`rounded-full px-4 py-2 text-xs font-black capitalize transition ${
-                    eventView === view
-                      ? "bg-[#24483f] text-white"
-                      : "text-[#24483f] hover:bg-[#24483f]/10"
-                  }`}
-                >
-                  {view}
-                </button>
-              ))}
-            </div>
+
+          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
+            {(["active", "archived"] as const).map((view) => (
+              <button
+                key={view}
+                onClick={() => setEventView(view)}
+                className={`rounded-md px-3 py-1 text-xs font-bold capitalize transition ${
+                  eventView === view ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {view} Events
+              </button>
+            ))}
           </div>
         </div>
 
         {events.length === 0 ? (
-          <div className="glass-card rounded-[2rem] p-8 text-center">
-            <h3 className="text-2xl font-black text-[#17201d]">
-              {eventView === "active" ? "No active events yet." : "No archived events."}
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-[#5f6762]">
-              {eventView === "active"
-                ? "Create your first event above. Photos will sync from the Drive folder automatically."
-                : "Archived events will appear here after you archive them."}
-            </p>
+          <div className="novus-card p-12 text-center bg-white border border-slate-200">
+            <p className="text-sm font-semibold text-slate-700">No {eventView} events found.</p>
+            <p className="text-xs text-slate-500 mt-1">Create an event above to start indexing photos.</p>
           </div>
         ) : (
-          <div className="grid gap-5">
+          <div className="grid gap-4">
             {events.map((event) => {
               const status = eventStatus(event);
               const progress = progressPercent(event);
 
               return (
-                <article key={event.id} className="glass-card rounded-[2rem] p-5 sm:p-6">
-                  <div className="grid gap-5 lg:grid-cols-[1fr_auto]">
-                    <div className="min-w-0">
+                <article key={event.id} className="novus-card p-6 bg-white border border-slate-200">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    <div className="space-y-3 flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-3">
-                        <h3 className="break-words text-2xl font-black text-[#17201d]">
-                          {event.name}
-                        </h3>
-                        <span className={`rounded-full px-3 py-1 text-xs font-black ${status.className}`}>
-                          {status.label}
-                        </span>
+                        <h4 className="text-lg font-bold text-slate-900 truncate">{event.name}</h4>
+                        <span className={`novus-badge ${status.className}`}>{status.label}</span>
                       </div>
-                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-2xl bg-white/65 p-4">
-                          <p className="text-2xl font-black text-[#17201d]">
-                            {event.photos_indexed}/{event.photos_total}
-                          </p>
-                          <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-[#6f756f]">
-                            Indexed
-                          </p>
+
+                      <div className="grid grid-cols-3 gap-3 max-w-md">
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Indexed</span>
+                          <p className="text-base font-extrabold text-slate-900">{event.photos_indexed}/{event.photos_total}</p>
                         </div>
-                        <div className="rounded-2xl bg-white/65 p-4">
-                          <p className="text-2xl font-black text-[#17201d]">
-                            {event.search_count}
-                          </p>
-                          <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-[#6f756f]">
-                            Searches
-                          </p>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Searches</span>
+                          <p className="text-base font-extrabold text-slate-900">{event.search_count}</p>
                         </div>
-                        <div className="rounded-2xl bg-white/65 p-4">
-                          <p className="text-2xl font-black text-[#17201d]">
-                            {progress}%
-                          </p>
-                          <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-[#6f756f]">
-                            Ready
-                          </p>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Progress</span>
+                          <p className="text-base font-extrabold text-slate-900">{progress}%</p>
                         </div>
                       </div>
-                      <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#e5d8c3]">
-                        <div
-                          className="h-full rounded-full bg-[#24483f]"
-                          style={{ width: `${progress}%` }}
-                        />
+
+                      {/* Progress Bar */}
+                      <div className="h-1.5 max-w-md overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
                       </div>
-                      <p className="mt-3 text-xs font-medium text-[#6f756f]">
-                        Pending {event.photos_pending} - Processing {event.photos_processing} - Failed{" "}
-                        {event.photos_failed}
-                        {event.last_searched_at
-                          ? ` - Last search ${new Date(event.last_searched_at).toLocaleString()}`
-                          : " - No guest searches yet"}
-                      </p>
+
                       {event.status === "active" ? (
                         <a
                           href={event.public_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-3 inline-block break-all text-sm font-black text-[#24483f] hover:underline"
+                          className="inline-block text-xs font-semibold text-blue-600 hover:underline truncate max-w-md"
                         >
-                          {event.public_url}
+                          🔗 {event.public_url}
                         </a>
                       ) : (
-                        <p className="mt-3 break-all text-sm font-black text-[#6f756f]">
-                          Public link disabled: {event.public_url}
-                        </p>
+                        <span className="text-xs font-semibold text-slate-400">Public link disabled</span>
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-2 lg:min-w-52">
+                    {/* Action Toolbar */}
+                    <div className="flex flex-wrap lg:flex-col gap-2 shrink-0">
                       {event.status === "active" ? (
                         <>
                           <button
-                            onClick={() => setShareEvent(event)}
-                            className="rounded-full bg-[#24483f] px-5 py-3 text-sm font-black text-white transition hover:bg-[#132b26]"
+                            onClick={() => setUploadModalEvent(event)}
+                            className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
                           >
-                            Share event
+                            <span>📸</span>
+                            <span>Upload Photos</span>
+                          </button>
+                          <button
+                            onClick={() => setShareEvent(event)}
+                            className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition"
+                          >
+                            Share & QR Studio
                           </button>
                           <button
                             onClick={() => handleSyncEvent(event.id)}
                             disabled={syncingEventId === event.id}
-                            className="rounded-full bg-[#24483f] px-5 py-3 text-sm font-black text-white transition hover:bg-[#132b26] disabled:opacity-50"
+                            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
                           >
-                            {syncingEventId === event.id ? "Syncing..." : "Sync new photos"}
+                            {syncingEventId === event.id ? "Syncing..." : "Sync Drive Photos"}
                           </button>
                           <button
                             onClick={() => handleReindexEvent(event.id)}
                             disabled={reindexingEventId === event.id}
-                            className="rounded-full bg-[#d97742] px-5 py-3 text-sm font-black text-white transition hover:bg-[#b85f30] disabled:opacity-50"
+                            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
                           >
-                            {reindexingEventId === event.id ? "Queueing..." : "Reindex all photos"}
+                            {reindexingEventId === event.id ? "Reindexing..." : "Re-Index Faces"}
                           </button>
                           <button
                             onClick={() => handleDeleteEvent(event.id)}
-                            className="rounded-full px-5 py-3 text-sm font-black text-red-700 transition hover:bg-red-50"
+                            className="rounded-lg px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition"
                           >
-                            Archive
+                            Archive Event
                           </button>
                         </>
                       ) : (
                         <>
                           <button
                             onClick={() => handleRestoreEvent(event.id)}
-                            className="rounded-full bg-[#24483f] px-5 py-3 text-sm font-black text-white transition hover:bg-[#132b26]"
+                            className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition"
                           >
-                            Restore
+                            Restore Event
                           </button>
                           <button
                             onClick={() => handlePermanentDeleteEvent(event.id)}
-                            className="rounded-full px-5 py-3 text-sm font-black text-red-700 transition hover:bg-red-50"
+                            className="rounded-lg px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition"
                           >
-                            Delete forever
+                            Delete Permanently
                           </button>
                         </>
                       )}
@@ -1067,90 +962,92 @@ export default function AdminDashboard() {
         )}
       </section>
 
+      {/* Google Drive Folder Browser Modal */}
       {drivePickerOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201d]/55 px-4 py-6 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="drive-picker-title"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setDrivePickerOpen(false);
-            }
-          }}
-        >
-          <div className="glass-card flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem]">
-            <div className="border-b border-[#e5d8c3] p-5 sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d97742]">
-                    Google Drive browser
-                  </p>
-                  <h2 id="drive-picker-title" className="mt-2 text-2xl font-black text-[#17201d]">
-                    {drivePickerState?.current_folder_name ?? "Loading folders"}
-                  </h2>
-                  <p className="mt-1 break-all text-xs font-medium text-[#6f756f]">
-                    {drivePickerState?.current_folder_id ??
-                      "Choose the folder that contains this event's photos."}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {drivePickerState?.parent_folder_id && (
-                    <button
-                      type="button"
-                      onClick={() => loadDriveFolders(drivePickerState.parent_folder_id ?? undefined)}
-                      disabled={drivePickerLoading}
-                      className="rounded-full border border-[#d7c8af] bg-white/70 px-4 py-2 text-xs font-black text-[#24483f] hover:border-[#24483f] disabled:opacity-50"
-                    >
-                      Up one level
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setDrivePickerOpen(false)}
-                    className="rounded-full border border-[#d7c8af] bg-white/70 px-4 py-2 text-xs font-black text-[#24483f] hover:border-[#24483f]"
-                  >
-                    Close
-                  </button>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="novus-card max-h-[85vh] w-full max-w-3xl overflow-hidden bg-white flex flex-col">
+            <div className="border-b border-slate-200 p-5 flex items-center justify-between">
+              <div>
+                <span className="novus-badge bg-blue-50 text-blue-700 border border-blue-200">Google Drive Ingestion</span>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">
+                  {drivePickerState?.current_folder_name ?? "Drive Folders"}
+                </h3>
               </div>
+              <button
+                onClick={() => setDrivePickerOpen(false)}
+                className="text-xs font-bold text-slate-500 hover:text-slate-800 p-2"
+              >
+                ✕ Close
+              </button>
             </div>
 
-            <div className="overflow-y-auto p-5 sm:p-6">
-              {drivePickerLoading && !drivePickerState ? (
-                <div className="rounded-2xl bg-white/70 px-4 py-8 text-center">
-                  <p className="text-sm font-black text-[#17201d]">Loading your Drive folders...</p>
-                  <p className="mt-2 text-sm font-medium text-[#5f6762]">
-                    This usually takes just a moment.
-                  </p>
+            <div className="overflow-y-auto p-5 flex-1 space-y-2">
+              {drivePickerLoading && (
+                <div className="py-8 text-center text-xs text-slate-500">Loading Google Drive directories...</div>
+              )}
+              {drivePickerState?.folders.map((folder) => (
+                <div
+                  key={folder.id}
+                  className="flex items-center justify-between rounded-lg border border-slate-200 p-3 hover:bg-slate-50 transition"
+                >
+                  <span className="text-sm font-semibold text-slate-900 truncate">{folder.name}</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => loadDriveFolders(folder.id)}
+                      className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Open
+                    </button>
+                    <button
+                      onClick={() => handleChooseFolder(folder.id, folder.name)}
+                      className="rounded-md bg-blue-600 px-3 py-1 text-xs font-bold text-white hover:bg-blue-700"
+                    >
+                      Select
+                    </button>
+                  </div>
                 </div>
-              ) : drivePickerState?.folders.length === 0 ? (
-                <p className="rounded-2xl bg-white/70 px-4 py-4 text-sm font-medium text-[#5f6762]">
-                  No subfolders found here.
-                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Guest Searches Audit Log Modal */}
+      {guestSearchesOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="novus-card max-h-[90vh] w-full max-w-5xl overflow-hidden bg-white flex flex-col">
+            <div className="border-b border-slate-200 p-5 flex items-center justify-between">
+              <div>
+                <span className="novus-badge bg-blue-50 text-blue-700 border border-blue-200">Audit & Compliance</span>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">Guest Search Activity Records</h3>
+              </div>
+              <button
+                onClick={() => setGuestSearchesOpen(false)}
+                className="text-xs font-bold text-slate-500 hover:text-slate-800 p-2"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-5 flex-1">
+              {guestSearches.length === 0 ? (
+                <p className="py-8 text-center text-xs text-slate-500">No guest searches recorded yet.</p>
               ) : (
-                <div className="grid gap-3 md:grid-cols-2">
-                  {drivePickerState?.folders.map((folder) => (
-                    <div key={folder.id} className="rounded-2xl bg-white/70 p-4">
-                      <p className="truncate text-sm font-black text-[#17201d]">{folder.name}</p>
-                      <p className="mt-1 truncate text-xs font-medium text-[#6f756f]">{folder.id}</p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => loadDriveFolders(folder.id)}
-                          disabled={drivePickerLoading}
-                          className="rounded-full border border-[#d7c8af] px-4 py-2 text-xs font-black text-[#24483f] hover:border-[#24483f] disabled:opacity-50"
-                        >
-                          Open
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleChooseFolder(folder.id, folder.name)}
-                          className="rounded-full bg-[#24483f] px-4 py-2 text-xs font-black text-white hover:bg-[#132b26]"
-                        >
-                          Select folder
-                        </button>
+                <div className="divide-y divide-slate-100">
+                  {guestSearches.map((s) => (
+                    <div key={s.id} className="py-3 flex items-center justify-between gap-4 text-xs">
+                      <div>
+                        <p className="font-bold text-slate-900">{s.guest_name || "Anonymous Guest"}</p>
+                        <p className="text-slate-500">{s.guest_email} • {s.guest_phone}</p>
                       </div>
+                      <span className="novus-badge bg-slate-100 text-slate-700">{s.match_count} matches</span>
+                      <span className="text-slate-400">{new Date(s.searched_at).toLocaleString()}</span>
+                      <button
+                        onClick={() => void handleDeleteGuestSearch(s.id)}
+                        className="text-red-600 hover:underline font-bold"
+                      >
+                        Delete
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1160,199 +1057,26 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {guestSearchesOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201d]/55 px-4 py-6 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="guest-searches-title"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setGuestSearchesOpen(false);
-            }
-          }}
-        >
-          <div className="glass-card flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem]">
-            <div className="border-b border-[#e5d8c3] p-5 sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d97742]">
-                    Guest searches
-                  </p>
-                  <h2 id="guest-searches-title" className="mt-2 text-2xl font-black text-[#17201d]">
-                    All guests who searched
-                  </h2>
-                  <p className="mt-1 text-sm font-medium text-[#5f6762]">
-                    Showing {guestSearches.length} records for {eventView} events.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setGuestSearchesOpen(false)}
-                  className="rounded-full border border-[#d7c8af] bg-white/70 px-4 py-2 text-xs font-black text-[#24483f] hover:border-[#24483f]"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-            <div className="overflow-y-auto p-5 sm:p-6">
-              {guestSearches.length === 0 ? (
-                <div className="rounded-2xl bg-white/70 p-6 text-center">
-                  <p className="text-sm font-black text-[#17201d]">No guest searches yet.</p>
-                  <p className="mt-2 text-sm font-medium text-[#5f6762]">
-                    Guest details will appear here after visitors search an event gallery.
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-2xl border border-[#e5d8c3] bg-white/75">
-                  <div className="hidden grid-cols-[1.1fr_1fr_1fr_0.7fr_1fr_auto] gap-3 border-b border-[#e5d8c3] bg-[#f7f1e8] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#6f756f] lg:grid">
-                    <span>Guest</span>
-                    <span>Contact</span>
-                    <span>Event</span>
-                    <span>Matches</span>
-                    <span>When</span>
-                    <span>Action</span>
-                  </div>
-                  <div className="divide-y divide-[#e5d8c3]">
-                    {guestSearches.map((search) => (
-                      <div key={search.id} className="grid gap-3 px-4 py-4 text-sm lg:grid-cols-[1.1fr_1fr_1fr_0.7fr_1fr_auto] lg:items-center">
-                        <div>
-                          <p className="font-black text-[#17201d]">{search.guest_name || "Guest"}</p>
-                          <p className="mt-1 text-xs font-medium text-[#6f756f]">ID {search.id.slice(0, 8).toUpperCase()}</p>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="break-all font-medium text-[#5f6762]">{search.guest_email || "No email"}</p>
-                          <p className="mt-1 break-all font-medium text-[#5f6762]">{search.guest_phone || "No phone"}</p>
-                        </div>
-                        <p className="break-words font-black text-[#24483f]">{search.event_name}</p>
-                        <span className="w-fit rounded-full bg-[#24483f]/10 px-3 py-1 text-xs font-black text-[#24483f]">
-                          {search.match_count} photos
-                        </span>
-                        <p className="font-medium text-[#5f6762]">{new Date(search.searched_at).toLocaleString()}</p>
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteGuestSearch(search.id)}
-                          className="w-fit rounded-full border border-red-200 px-3 py-1 text-xs font-black text-red-700 hover:bg-red-50"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Venue Print & QR Studio Modal */}
       {shareEvent && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#17201d]/55 px-4 py-6 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="share-event-title"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setShareEvent(null);
-            }
+        <VenuePrintStudio
+          event={shareEvent}
+          isOpen={true}
+          onClose={() => setShareEvent(null)}
+        />
+      )}
+
+      {/* Direct Photo Uploader Modal/Sheet */}
+      {uploadModalEvent && (
+        <DirectPhotoUploader
+          event={uploadModalEvent}
+          accessToken={sessionToken}
+          isOpen={true}
+          onClose={() => setUploadModalEvent(null)}
+          onUploadComplete={async () => {
+            await refreshEventData();
           }}
-        >
-          <div className="glass-card grid max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] lg:grid-cols-[0.92fr_1.08fr]">
-            <div className="bg-[#24483f] p-6 text-white sm:p-8">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-[#f7d8bd]">
-                Event QR
-              </p>
-              <h2 id="share-event-title" className="mt-3 break-words text-3xl font-black">
-                {shareEvent.name}
-              </h2>
-              <p className="mt-3 text-sm font-medium leading-6 text-white/80">
-                This QR code opens the public event page directly. Share it on WhatsApp,
-                print it at the venue, or place it in a client message.
-              </p>
-
-              <div className="mt-6 space-y-3 rounded-2xl bg-white/10 p-4">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#f7d8bd]">
-                    Event ID
-                  </p>
-                  <p className="mt-1 break-all text-sm font-bold text-white">{shareEvent.id}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#f7d8bd]">
-                    Public URL
-                  </p>
-                  <p className="mt-1 break-all text-sm font-bold text-white">{shareEvent.public_url}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 sm:p-8">
-              <div className="mx-auto max-w-md rounded-[1.5rem] border border-[#e5d8c3] bg-white p-5 text-center shadow-xl shadow-[#24483f]/10">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d97742]">
-                  Scan to open gallery
-                </p>
-                <h3 className="mt-3 break-words text-2xl font-black text-[#17201d]">
-                  {shareEvent.name}
-                </h3>
-                <div className="mx-auto mt-5 flex aspect-square w-full max-w-[280px] items-center justify-center rounded-2xl border border-[#e5d8c3] bg-white p-4">
-                  {shareQrDataUrl ? (
-                    <img src={shareQrDataUrl} alt={`${shareEvent.name} QR code`} className="h-full w-full" />
-                  ) : (
-                    <p className="text-sm font-bold text-[#5f6762]">Generating QR...</p>
-                  )}
-                </div>
-                <p className="mt-4 text-xs font-black uppercase tracking-[0.14em] text-[#6f756f]">
-                  Event ID {shortEventId(shareEvent.id)}
-                </p>
-                <p className="mt-2 break-all text-xs font-medium leading-5 text-[#5f6762]">
-                  {shareEvent.public_url}
-                </p>
-              </div>
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  disabled={!shareQrDataUrl || shareBusyAction !== null}
-                  onClick={() => shareEventQr(shareEvent)}
-                  className="rounded-full bg-[#24483f] px-5 py-3 text-sm font-black text-white transition hover:bg-[#132b26] disabled:opacity-50"
-                >
-                  {shareBusyAction === "share" ? "Preparing..." : "Share QR image"}
-                </button>
-                <button
-                  type="button"
-                  disabled={!shareQrDataUrl || shareBusyAction !== null}
-                  onClick={() => downloadEventQr(shareEvent)}
-                  className="rounded-full bg-[#d97742] px-5 py-3 text-sm font-black text-white transition hover:bg-[#b85f30] disabled:opacity-50"
-                >
-                  {shareBusyAction === "download" ? "Preparing..." : "Download PNG"}
-                </button>
-                <button
-                  type="button"
-                  disabled={!shareQrDataUrl || shareBusyAction !== null}
-                  onClick={() => copyEventQrImage(shareEvent)}
-                  className="rounded-full border border-[#d7c8af] bg-white/70 px-5 py-3 text-sm font-black text-[#24483f] transition hover:border-[#24483f] disabled:opacity-50"
-                >
-                  {shareBusyAction === "copy" ? "Copying..." : "Copy QR image"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => copyEventLink(shareEvent.public_url)}
-                  className="rounded-full border border-[#d7c8af] bg-white/70 px-5 py-3 text-sm font-black text-[#24483f] transition hover:border-[#24483f]"
-                >
-                  Copy URL
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShareEvent(null)}
-                className="mt-4 w-full rounded-full px-5 py-3 text-sm font-black text-[#5f6762] transition hover:bg-white/70"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        />
       )}
     </main>
   );
