@@ -17,7 +17,7 @@ google-api-python-client==2.156.0
 google-auth-oauthlib==1.2.1
 cryptography==50.0.0
 pillow==12.3.0
-insightface==1.0.1
+insightface==2.1
 onnxruntime>=1.24.1,<1.27
 opencv-python-headless>=4.10.0,<4.14
 numpy>=2.0.0,<2.5
