@@ -3,7 +3,7 @@ services:
     name: eventlens-api
     env: docker
     dockerfilePath: Dockerfile
-    dockerContext: backend
+    dockerContext: .
     plan: free
     region: oregon
     envVars:
