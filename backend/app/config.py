@@ -43,9 +43,9 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
 
-    similarity_threshold: float = 0.4
+    similarity_threshold: float = 0.45
     max_search_results: int = 200
-    face_model_name: str = "buffalo_l"
+    face_model_name: str = "buffalo_s"
     face_detection_size: int = 640
     face_detection_fallback_size: int = 1024
     auto_sync_interval_minutes: int = 30

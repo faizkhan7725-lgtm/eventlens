@@ -154,7 +154,7 @@ def _authorized_photo(slug: str, photo_id: uuid.UUID, token: str, db: Session) -
         raise HTTPException(status_code=404, detail="Photo not found")
     if photo.storage_provider == "drive" and not photo.drive_url:
         raise HTTPException(status_code=404, detail="Photo not found")
-    if photo.storage_provider in ("local", "s3") and not photo.storage_key:
+    if photo.storage_provider in ("local", "s3", "supabase") and not photo.storage_key:
         raise HTTPException(status_code=404, detail="Photo not found")
     verify_photo_access_token(token, event.id, photo.id)
     return photo
@@ -163,8 +163,13 @@ def _authorized_photo(slug: str, photo_id: uuid.UUID, token: str, db: Session) -
 @router.get("/events/{slug}/photos/{photo_id}/download")
 def download_public_photo(slug: str, photo_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     photo = _authorized_photo(slug, photo_id, token, db)
-    if photo.storage_provider in ("local", "s3") and photo.storage_key:
-        image_bytes = get_storage_provider().get_file(photo.storage_key)
+    provider = get_storage_provider()
+    if photo.storage_provider == "supabase" and photo.storage_key and hasattr(provider, "get_public_url"):
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=provider.get_public_url(photo.storage_key), status_code=307)
+
+    if photo.storage_provider in ("local", "s3", "supabase") and photo.storage_key:
+        image_bytes = provider.get_file(photo.storage_key)
         media_type = "image/jpeg"
         if photo.filename.lower().endswith(".png"):
             media_type = "image/png"
@@ -188,10 +193,17 @@ def download_public_photo(slug: str, photo_id: uuid.UUID, token: str, db: Sessio
 @router.get("/events/{slug}/photos/{photo_id}/thumbnail")
 def preview_public_photo(slug: str, photo_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     photo = _authorized_photo(slug, photo_id, token, db)
+    provider = get_storage_provider()
+
+    if photo.storage_provider == "supabase" and hasattr(provider, "get_public_url"):
+        key = photo.thumbnail_key or photo.storage_key
+        if key:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=provider.get_public_url(key), status_code=307)
 
     if photo.thumbnail_key:
         try:
-            image_bytes = get_storage_provider().get_file(photo.thumbnail_key)
+            image_bytes = provider.get_file(photo.thumbnail_key)
             return Response(
                 content=image_bytes,
                 media_type="image/webp",
@@ -200,8 +212,8 @@ def preview_public_photo(slug: str, photo_id: uuid.UUID, token: str, db: Session
         except Exception:
             pass
 
-    if photo.storage_provider in ("local", "s3") and photo.storage_key:
-        image_bytes = get_storage_provider().get_file(photo.storage_key)
+    if photo.storage_provider in ("local", "s3", "supabase") and photo.storage_key:
+        image_bytes = provider.get_file(photo.storage_key)
         return Response(
             content=image_bytes,
             media_type="image/jpeg",

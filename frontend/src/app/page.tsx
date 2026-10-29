@@ -1,4 +1,5 @@
 import Link from "next/link";
+import GuestEventCodeSearch from "@/components/guest-event-code-search";
 
 export default function Home() {
   return (
@@ -62,8 +63,11 @@ export default function Home() {
             </h1>
 
             <p className="mt-6 text-lg sm:text-xl leading-relaxed text-slate-600 max-w-2xl mx-auto">
-              NovusGrid indexes high-resolution event galleries in seconds. Guests scan a venue QR code, provide one selfie, and immediately discover and download their photos.
+              NovusGrid indexes high-resolution event galleries in seconds. Guests scan a venue QR code or enter an event code, provide one selfie, and immediately discover and download their photos.
             </p>
+
+            {/* Guest Direct Code Search */}
+            <GuestEventCodeSearch />
 
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link

@@ -133,7 +133,7 @@ def process_photo_indexing(photo_id: str) -> None:
 
 
 def _run_face_indexing(photo: Photo, photographer: Photographer, db: Session) -> None:
-    if photo.storage_provider in ("local", "s3") and photo.storage_key:
+    if photo.storage_provider in ("local", "s3", "supabase") and photo.storage_key:
         image_bytes = get_storage_provider().get_file(photo.storage_key)
     else:
         image_bytes = drive_service.download_photo_bytes(db, photographer, photo)

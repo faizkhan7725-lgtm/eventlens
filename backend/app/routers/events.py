@@ -205,7 +205,7 @@ async def upload_event_photos(
 
     db.commit()
 
-    # Enqueue indexing tasks
+    # Enqueue indexing tasks (Celery queue with direct background thread fallback)
     try:
         from app.worker import index_photo_task
 
@@ -213,7 +213,12 @@ async def upload_event_photos(
             db.refresh(photo)
             index_photo_task.delay(str(photo.id))
     except Exception:
-        pass
+        import threading
+        from app.services.indexing import process_photo_indexing
+
+        for photo in created_photos:
+            db.refresh(photo)
+            threading.Thread(target=process_photo_indexing, args=(str(photo.id),), daemon=True).start()
 
     return PhotoUploadResponse(
         uploaded_count=len(created_photos),

@@ -185,13 +185,89 @@ class S3StorageProvider(StorageProvider):
             return False
 
 
+class SupabaseStorageProvider(StorageProvider):
+    """Supabase Storage provider with public CDN acceleration and zero disk dependency."""
+
+    def __init__(self, bucket_name: str = "event-photos"):
+        self.bucket_name = bucket_name
+        self.url = settings.supabase_url.rstrip("/")
+        self.key = settings.supabase_service_role_key
+
+    def save_file(self, data: bytes, key: str) -> str:
+        import requests
+
+        clean_key = key.replace("\\", "/").lstrip("/")
+        content_type, _ = mimetypes.guess_type(clean_key)
+        content_type = content_type or "application/octet-stream"
+        endpoint = f"{self.url}/storage/v1/object/{self.bucket_name}/{clean_key}"
+        res = requests.post(
+            endpoint,
+            headers={
+                "Authorization": f"Bearer {self.key}",
+                "apikey": self.key,
+                "Content-Type": content_type,
+                "x-upsert": "true",
+            },
+            data=data,
+            timeout=30,
+        )
+        if res.status_code not in (200, 201):
+            raise RuntimeError(f"Supabase storage upload failed: {res.status_code} {res.text}")
+        return clean_key
+
+    def get_file(self, key: str) -> bytes:
+        import requests
+
+        clean_key = key.replace("\\", "/").lstrip("/")
+        endpoint = f"{self.url}/storage/v1/object/public/{self.bucket_name}/{clean_key}"
+        res = requests.get(endpoint, timeout=30)
+        if res.status_code != 200:
+            res = requests.get(
+                f"{self.url}/storage/v1/object/{self.bucket_name}/{clean_key}",
+                headers={"Authorization": f"Bearer {self.key}", "apikey": self.key},
+                timeout=30,
+            )
+        if res.status_code != 200:
+            raise FileNotFoundError(f"Storage key not found: {key}")
+        return res.content
+
+    def get_public_url(self, key: str) -> str:
+        clean_key = key.replace("\\", "/").lstrip("/")
+        return f"{self.url}/storage/v1/object/public/{self.bucket_name}/{clean_key}"
+
+    def delete_file(self, key: str) -> bool:
+        import requests
+
+        clean_key = key.replace("\\", "/").lstrip("/")
+        endpoint = f"{self.url}/storage/v1/object/{self.bucket_name}/{clean_key}"
+        res = requests.delete(
+            endpoint,
+            headers={"Authorization": f"Bearer {self.key}", "apikey": self.key},
+            timeout=10,
+        )
+        return res.status_code in (200, 204)
+
+    def exists(self, key: str) -> bool:
+        import requests
+
+        clean_key = key.replace("\\", "/").lstrip("/")
+        endpoint = f"{self.url}/storage/v1/object/public/{self.bucket_name}/{clean_key}"
+        res = requests.head(endpoint, timeout=10)
+        return res.status_code == 200
+
+
 _provider_instance: StorageProvider | None = None
 
 
 def get_storage_provider() -> StorageProvider:
     global _provider_instance
     if _provider_instance is None:
-        if settings.storage_backend.lower() == "s3" and settings.s3_bucket_name:
+        if (
+            settings.storage_backend.lower() == "supabase"
+            or (settings.supabase_url and settings.supabase_service_role_key)
+        ):
+            _provider_instance = SupabaseStorageProvider()
+        elif settings.storage_backend.lower() == "s3" and settings.s3_bucket_name:
             _provider_instance = S3StorageProvider()
         else:
             _provider_instance = LocalStorageProvider()
