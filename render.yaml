@@ -2,7 +2,7 @@ services:
   - type: web
     name: eventlens-api
     env: docker
-    dockerfilePath: backend/Dockerfile
+    dockerfilePath: Dockerfile
     dockerContext: backend
     plan: free
     region: oregon
