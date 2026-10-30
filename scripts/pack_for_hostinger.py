@@ -1,7 +1,11 @@
 import os
+import sys
 import zipfile
 import shutil
 from pathlib import Path
+
+# Ensure UTF-8 output on Windows
+sys.stdout.reconfigure(encoding="utf-8")
 
 def package():
     base_dir = Path(__file__).resolve().parent.parent
@@ -31,12 +35,16 @@ def package():
         "package.json",
         "package-lock.json",
         "next.config.mjs",
+        "tsconfig.json",
+        "tailwind.config.ts",
+        "postcss.config.mjs",
         ".env.production",
     ]
 
     dirs_to_pack = [
         "public",
         ".next",
+        "src",
     ]
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:

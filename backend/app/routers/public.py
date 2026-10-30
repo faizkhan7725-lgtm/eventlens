@@ -42,10 +42,10 @@ def get_public_event(slug: str, db: Session = Depends(get_db)):
 async def search_public_event(
     request: Request,
     slug: str,
-    guest_name: str = Form(..., min_length=1, max_length=255),
-    guest_phone: str = Form(..., min_length=1, max_length=50),
-    guest_email: str = Form(..., min_length=1, max_length=255),
-    privacy_consent: bool = Form(...),
+    guest_name: str = Form("Guest", max_length=255),
+    guest_phone: str | None = Form(None),
+    guest_email: str | None = Form(None),
+    privacy_consent: bool = Form(True),
     selfie: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -58,14 +58,15 @@ async def search_public_event(
         )
     if not privacy_consent:
         raise HTTPException(status_code=400, detail="Privacy consent is required")
-    clean_name = guest_name.strip()
-    clean_phone = guest_phone.strip()
-    clean_email = guest_email.strip().lower()
-    if not clean_name or any(ord(char) < 32 for char in clean_name):
+    clean_name = guest_name.strip() if guest_name and guest_name.strip() else "Guest"
+    clean_phone = guest_phone.strip() if guest_phone and guest_phone.strip() else None
+    clean_email = guest_email.strip().lower() if guest_email and guest_email.strip() else None
+
+    if any(ord(char) < 32 for char in clean_name):
         raise HTTPException(status_code=400, detail="Enter a valid name")
-    if not clean_phone or not all(char.isdigit() or char in "+-() " for char in clean_phone):
+    if clean_phone and not all(char.isdigit() or char in "+-() " for char in clean_phone):
         raise HTTPException(status_code=400, detail="Enter a valid phone number")
-    if clean_email.count("@") != 1 or "." not in clean_email.rsplit("@", 1)[-1]:
+    if clean_email and (clean_email.count("@") != 1 or "." not in clean_email.rsplit("@", 1)[-1]):
         raise HTTPException(status_code=400, detail="Enter a valid email address")
     if selfie.content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(status_code=415, detail="Upload a JPEG, PNG, or WebP image")

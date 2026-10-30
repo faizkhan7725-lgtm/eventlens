@@ -63,9 +63,9 @@ export default async function EventPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-3.5">
+    <div className="min-h-screen bg-slate-50 text-slate-900 w-full max-w-full overflow-x-hidden">
+      <header className="border-b border-slate-200 bg-white w-full max-w-full">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-3 sm:px-6 py-3 sm:py-3.5">
           <Link href="/" className="flex items-center gap-2 sm:gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-xs shrink-0">
               NG
@@ -77,14 +77,14 @@ export default async function EventPage({ params }: Props) {
 
           <Link
             href="/privacy"
-            className="text-xs font-semibold text-slate-500 hover:text-blue-600 transition"
+            className="text-xs font-semibold text-slate-500 hover:text-blue-600 transition shrink-0"
           >
             Privacy Notice
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-8 lg:py-10">
+      <main className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-8 lg:py-10 w-full max-w-full">
         {/* Mobile: search first, info card below. Desktop: side-by-side */}
         <section className="flex flex-col lg:grid lg:gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start gap-6">
           <PublicEventSearch slug={event.slug} ready={event.ready} />

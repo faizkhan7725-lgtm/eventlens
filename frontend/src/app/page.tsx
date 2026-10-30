@@ -48,31 +48,31 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-16 pb-20 md:pt-24 md:pb-32">
+      <section className="relative overflow-hidden pt-12 pb-16 md:pt-24 md:pb-32 w-full max-w-full">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(45rem_50rem_at_top,theme(colors.blue.100),theme(colors.slate.50))] opacity-60" />
         
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50/80 px-4 py-1.5 text-xs font-semibold text-blue-700 mb-6">
-              <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-              Commercial AI Event Photo Discovery for Professionals
+            <div className="inline-flex max-w-full items-center gap-1.5 sm:gap-2 rounded-full border border-blue-200 bg-blue-50/80 px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-semibold text-blue-700 mb-6 text-center">
+              <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse shrink-0" />
+              <span className="truncate sm:overflow-visible">Commercial AI Event Photo Discovery for Professionals</span>
             </div>
 
-            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-6xl md:text-7xl leading-[1.08]">
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-6xl md:text-7xl leading-[1.12] sm:leading-[1.08] break-words">
               Turn thousands of event photos into <span className="text-blue-600">instant guest moments.</span>
             </h1>
 
-            <p className="mt-6 text-lg sm:text-xl leading-relaxed text-slate-600 max-w-2xl mx-auto">
+            <p className="mt-4 sm:mt-6 text-sm sm:text-xl leading-relaxed text-slate-600 max-w-2xl mx-auto px-2">
               NovusGrid indexes high-resolution event galleries in seconds. Guests scan a venue QR code or enter an event code, provide one selfie, and immediately discover and download their photos.
             </p>
 
             {/* Guest Direct Code Search */}
             <GuestEventCodeSearch />
 
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
               <Link
                 href="/admin"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 hover:shadow-blue-600/35"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 sm:px-8 py-3.5 sm:py-4 text-sm sm:text-base font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 hover:shadow-blue-600/35"
               >
                 <span>Launch Organizer Dashboard</span>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -81,13 +81,13 @@ export default function Home() {
               </Link>
               <Link
                 href="/privacy"
-                className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-8 py-4 text-base font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-400"
+                className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 sm:px-8 py-3.5 sm:py-4 text-sm sm:text-base font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-400"
               >
                 Biometric Privacy Standards
               </Link>
             </div>
 
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <div className="mt-8 sm:mt-12 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3 sm:gap-8 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <span className="flex items-center gap-1.5">
                 <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
                 Zero App Downloads Required
