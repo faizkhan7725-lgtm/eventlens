@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,14 +11,20 @@ from app.routers import auth, events, health, public
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Pre-warm face recognition model in memory at startup
-    try:
-        from app.services.faces import face_analysis
+    # Non-blocking background warmup so Render startup port probe succeeds instantly (sub-second)
+    async def _warmup():
+        try:
+            await asyncio.sleep(2)
+            from app.services.faces import face_analysis
 
-        face_analysis()
-    except Exception as exc:
-        print(f"[lifespan] Warning: could not pre-warm face models: {exc}")
+            await asyncio.to_thread(face_analysis)
+            print("[lifespan] Face analysis models pre-warmed successfully.")
+        except Exception as exc:
+            print(f"[lifespan] Warning: could not pre-warm face models: {exc}")
+
+    warmup_task = asyncio.create_task(_warmup())
     yield
+    warmup_task.cancel()
 
 
 app = FastAPI(
