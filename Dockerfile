@@ -19,9 +19,10 @@ RUN pip install --no-cache-dir --upgrade pip
 COPY backend/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code and alembic migrations
+# Copy backend code, lightweight models, and alembic migrations
 COPY backend/alembic.ini alembic.ini
 COPY backend/alembic ./alembic
+COPY backend/models ./models
 COPY backend/app ./app
 
 # Create upload folder for local storage

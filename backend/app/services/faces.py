@@ -8,14 +8,27 @@ import numpy as np
 from insightface.app import FaceAnalysis
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from pathlib import Path
+
 from app.config import settings
+
+
+def _get_models_root() -> str:
+    """Returns local models directory if packaged in backend/models or /app/models, else fallback to ~/.insightface."""
+    base = Path(__file__).resolve().parent.parent.parent
+    local_models = base / "models"
+    if (local_models / "buffalo_s" / "det_500m.onnx").is_file():
+        return str(base)
+    return "~/.insightface"
 
 
 @lru_cache(maxsize=4)
 def face_analysis(det_size: int | None = None) -> FaceAnalysis:
     size = det_size or settings.face_detection_size
+    root_dir = _get_models_root()
     app = FaceAnalysis(
         name=settings.face_model_name,
+        root=root_dir,
         allowed_modules=["detection", "recognition"],
         providers=["CPUExecutionProvider"],
     )
