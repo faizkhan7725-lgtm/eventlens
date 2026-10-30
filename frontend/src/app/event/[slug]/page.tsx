@@ -1,8 +1,10 @@
 import PublicEventInfoCard from "@/components/public-event-info-card";
 import PublicEventSearch from "@/components/public-event-search";
+import BrandLogo from "@/components/brand-logo";
+import GlobalFooter from "@/components/global-footer";
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // Cache on Hostinger for 5 minutes for instant sub-second page loads
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -14,10 +16,21 @@ async function getEvent(slug: string) {
     apiUrl = `${apiUrl}/api`;
   }
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500); // 3.5s max timeout to prevent cold boot blocking
     const res = await fetch(`${apiUrl}/public/events/${slug}`, {
-      cache: "no-store",
+      signal: controller.signal,
+      next: { revalidate: 300 },
     });
-    if (!res.ok) return null;
+    clearTimeout(timer);
+    if (!res.ok) {
+      return {
+        name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        slug: slug,
+        photos_indexed: 0,
+        ready: true,
+      };
+    }
     return res.json() as Promise<{
       name: string;
       slug: string;
@@ -25,7 +38,13 @@ async function getEvent(slug: string) {
       ready: boolean;
     }>;
   } catch {
-    return null;
+    // If backend is waking up from sleep, immediately return event shell so the camera UI loads in milliseconds
+    return {
+      name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      slug: slug,
+      photos_indexed: 0,
+      ready: true,
+    };
   }
 }
 
@@ -55,7 +74,7 @@ export default async function EventPage({ params }: Props) {
             href="/"
             className="mt-6 inline-block rounded-lg bg-blue-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-blue-700 transition"
           >
-            Go to NovusGrid Home
+            Go to EventLens Home
           </Link>
         </div>
       </div>
@@ -63,28 +82,29 @@ export default async function EventPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 w-full max-w-full overflow-x-hidden">
-      <header className="border-b border-slate-200 bg-white w-full max-w-full">
+    <div className="min-h-screen bg-slate-50 text-slate-900 w-full max-w-full overflow-x-hidden flex flex-col">
+      <header className="border-b border-slate-200 bg-white w-full max-w-full sticky top-0 z-30 shadow-xs">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-3 sm:px-6 py-3 sm:py-3.5">
-          <Link href="/" className="flex items-center gap-2 sm:gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-xs shrink-0">
-              NG
-            </div>
-            <span className="font-extrabold text-sm sm:text-base tracking-tight text-slate-900">
-              NovusGrid <span className="hidden xs:inline">Photos</span>
-            </span>
-          </Link>
+          <BrandLogo size="sm" href="/" />
 
-          <Link
-            href="/privacy"
-            className="text-xs font-semibold text-slate-500 hover:text-blue-600 transition shrink-0"
-          >
-            Privacy Notice
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="text-xs font-semibold text-slate-600 hover:text-blue-600 transition"
+            >
+              All Events
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-xs font-semibold text-slate-500 hover:text-blue-600 transition shrink-0"
+            >
+              Privacy Notice
+            </Link>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-8 lg:py-10 w-full max-w-full">
+      <main className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-8 lg:py-10 w-full max-w-full flex-1">
         {/* Mobile: search first, info card below. Desktop: side-by-side */}
         <section className="flex flex-col lg:grid lg:gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start gap-6">
           <PublicEventSearch slug={event.slug} ready={event.ready} />
@@ -96,6 +116,8 @@ export default async function EventPage({ params }: Props) {
           />
         </section>
       </main>
+
+      <GlobalFooter />
     </div>
   );
 }

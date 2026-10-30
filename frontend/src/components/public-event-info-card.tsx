@@ -41,7 +41,7 @@ export default function PublicEventInfoCard({ name, photosIndexed, ready, slug }
         </h1>
 
         <p className="mt-3 text-sm sm:text-base leading-relaxed text-slate-600">
-          Capture or upload a quick selfie. NovusGrid AI will scan the event photographs and locate every picture in which you appear.
+          Capture or upload a quick selfie. EventLens AI will scan the event photographs and locate every picture in which you appear.
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-3">

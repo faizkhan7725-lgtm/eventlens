@@ -26,7 +26,6 @@ const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://eventlens-api.onren
 export default function PublicEventSearch({ slug, ready }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [selfiePreviewUrl, setSelfiePreviewUrl] = useState<string | null>(null);
-  const [guestName, setGuestName] = useState("");
   const [consentChecked, setConsentChecked] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState("Matching your photos...");
@@ -296,10 +295,8 @@ export default function PublicEventSearch({ slug, ready }: Props) {
     setLoadingMsg("Scanning event gallery with AI...");
     setError(null);
 
-    await ensureEventActive();
-
     const formData = new FormData();
-    formData.append("guest_name", guestName.trim() || "Guest");
+    formData.append("guest_name", "Guest");
     formData.append("privacy_consent", "true");
     formData.append("selfie", file);
 
@@ -587,20 +584,6 @@ export default function PublicEventSearch({ slug, ready }: Props) {
               )}
             </div>
 
-            {/* Simple Optional Name Field (Zero Friction!) */}
-            <div className="pt-2">
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Your Name <span className="text-slate-400 font-normal">(Optional)</span>
-              </label>
-              <input
-                type="text"
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                placeholder="e.g. Faisal Khan"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/20"
-              />
-            </div>
-
             {/* Consent Notice */}
             <label className="flex items-start gap-2.5 pt-1 text-xs text-slate-500 cursor-pointer">
               <input
@@ -670,7 +653,7 @@ export default function PublicEventSearch({ slug, ready }: Props) {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-4">
+            <div className="columns-1 xs:columns-2 sm:columns-3 md:columns-4 gap-3.5 space-y-3.5">
               {result.photos.map((photo, index) => {
                 const accessToken = encodeURIComponent(photo.access_token);
                 const thumbUrl = `${API_URL}/public/events/${slug}/photos/${photo.id}/thumbnail?token=${accessToken}`;
@@ -679,23 +662,24 @@ export default function PublicEventSearch({ slug, ready }: Props) {
                 return (
                   <article
                     key={photo.id}
-                    className="group relative overflow-hidden rounded-xl border border-slate-200 bg-slate-950 shadow-sm transition hover:shadow-md cursor-pointer aspect-[4/3]"
+                    className="break-inside-avoid mb-3.5 group relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm transition hover:shadow-md cursor-pointer"
                     onClick={() => setActiveLightboxIndex(index)}
                   >
                     <img
                       src={thumbUrl}
                       alt="Matched event moment"
                       loading="lazy"
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      className="w-full h-auto block rounded-2xl transition-transform duration-300 group-hover:scale-[1.01]"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2.5">
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3 rounded-2xl">
+                      <span className="text-[11px] font-bold text-white drop-shadow">🔍 Enlarge</span>
                       <a
                         href={downloadUrl}
                         onClick={(e) => e.stopPropagation()}
                         download
-                        className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm hover:bg-blue-500 transition"
+                        className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-md hover:bg-blue-500 transition"
                       >
-                        Download
+                        ⬇ Download
                       </a>
                     </div>
                   </article>
@@ -708,22 +692,28 @@ export default function PublicEventSearch({ slug, ready }: Props) {
 
       {/* Lightbox Modal */}
       {activeLightboxIndex !== null && result && result.photos[activeLightboxIndex] && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-3 sm:p-6"
+          onClick={() => setActiveLightboxIndex(null)}
+        >
           <button
             type="button"
             onClick={() => setActiveLightboxIndex(null)}
-            className="absolute top-4 right-4 text-white/90 hover:text-white p-2 rounded-full bg-white/10 text-sm font-bold z-10"
+            className="absolute top-4 right-4 text-white/90 hover:text-white p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-sm font-bold z-10 transition"
           >
             ✕ Close
           </button>
 
-          <div className="max-w-4xl max-h-[85vh] flex flex-col items-center">
+          <div 
+            className="max-w-4xl max-h-[90vh] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             <img
-              src={`${API_URL}/public/events/${slug}/photos/${result.photos[activeLightboxIndex].id}/thumbnail?token=${encodeURIComponent(
+              src={`${API_URL}/public/events/${slug}/photos/${result.photos[activeLightboxIndex].id}/download?token=${encodeURIComponent(
                 result.photos[activeLightboxIndex].access_token
               )}`}
-              alt="Full preview"
-              className="max-h-[70vh] w-auto max-w-full rounded-xl object-contain shadow-2xl"
+              alt="Full original preview"
+              className="max-h-[75vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
             />
             <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
               <a
@@ -733,7 +723,7 @@ export default function PublicEventSearch({ slug, ready }: Props) {
                 download
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-blue-500 shadow-lg shadow-blue-500/25 transition"
               >
-                Download Original High-Res
+                ⬇ Download Original High-Res
               </a>
               <span className="text-xs text-slate-400">
                 Photo {activeLightboxIndex + 1} of {result.photos.length}

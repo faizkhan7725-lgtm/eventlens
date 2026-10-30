@@ -1,5 +1,8 @@
 import Link from "next/link";
+import BrandLogo from "@/components/brand-logo";
 import GuestEventCodeSearch from "@/components/guest-event-code-search";
+import EcosystemSection from "@/components/ecosystem-section";
+import GlobalFooter from "@/components/global-footer";
 
 export default function Home() {
   return (
@@ -7,26 +10,13 @@ export default function Home() {
       {/* Global Navigation */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4">
-          <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group">
-            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20 transition-transform group-hover:scale-105 shrink-0">
-              <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M3 9a2 2 0 0 1 2-2h.93a2 2 0 0 0 1.664-.89l.812-1.22A2 2 0 0 1 10.07 4h3.86a2 2 0 0 1 1.664.89l.812 1.22A2 2 0 0 0 18.07 7H19a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" />
-              </svg>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">NovusGrid</span>
-              <span className="hidden xs:inline-block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                Events
-              </span>
-            </div>
-          </Link>
+          <BrandLogo size="md" href="/" />
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
             <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
             <a href="#solutions" className="hover:text-blue-600 transition-colors">Solutions</a>
-            <a href="#workflow" className="hover:text-blue-600 transition-colors">How It Works</a>
             <a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a>
+            <a href="#ecosystem" className="hover:text-blue-600 transition-colors">NovusGrid Suite</a>
             <Link href="/privacy" className="hover:text-blue-600 transition-colors">Privacy</Link>
           </nav>
 
@@ -63,11 +53,13 @@ export default function Home() {
             </h1>
 
             <p className="mt-4 sm:mt-6 text-sm sm:text-xl leading-relaxed text-slate-600 max-w-2xl mx-auto px-2">
-              NovusGrid indexes high-resolution event galleries in seconds. Guests scan a venue QR code or enter an event code, provide one selfie, and immediately discover and download their photos.
+              EventLens indexes high-resolution event galleries in seconds. Guests scan a venue QR code or enter an event code, provide one selfie, and immediately discover and download their photos.
             </p>
 
             {/* Guest Direct Code Search */}
-            <GuestEventCodeSearch />
+            <div id="search" className="scroll-mt-24">
+              <GuestEventCodeSearch />
+            </div>
 
             <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
               <Link
@@ -113,7 +105,7 @@ export default function Home() {
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Live Active Event</span>
                   </div>
                   <h3 className="mt-1 text-2xl font-bold tracking-tight text-white">St. Xavier&apos;s Annual Convocation 2026</h3>
-                  <p className="text-sm text-slate-400 mt-1">Organized by NovusGrid Studio • 4,280 photos indexed</p>
+                  <p className="text-sm text-slate-400 mt-1">Organized by EventLens Studio • 4,280 photos indexed</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-400">
@@ -182,7 +174,7 @@ export default function Home() {
 
           <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="novus-card p-6">
-              <div className="w-12 h-12 rounded-xl bg-pink-50 border border-pink-100 flex items-center justify-center text-pink-600 font-bold mb-4">
+              <div className="w-12 h-12 rounded-xl bg-pink-50 border border-pink-100 flex items-center justify-center text-pink-600 font-bold mb-4 text-2xl">
                 💍
               </div>
               <h3 className="text-lg font-bold text-slate-900">Weddings & Receptions</h3>
@@ -192,7 +184,7 @@ export default function Home() {
             </div>
 
             <div className="novus-card p-6">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold mb-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 font-bold mb-4 text-2xl">
                 🎓
               </div>
               <h3 className="text-lg font-bold text-slate-900">Schools & Universities</h3>
@@ -202,7 +194,7 @@ export default function Home() {
             </div>
 
             <div className="novus-card p-6">
-              <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 font-bold mb-4">
+              <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 font-bold mb-4 text-2xl">
                 🏢
               </div>
               <h3 className="text-lg font-bold text-slate-900">Corporate Summits</h3>
@@ -212,7 +204,7 @@ export default function Home() {
             </div>
 
             <div className="novus-card p-6">
-              <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-bold mb-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-bold mb-4 text-2xl">
                 🏃
               </div>
               <h3 className="text-lg font-bold text-slate-900">Marathons & Sports</h3>
@@ -251,7 +243,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-bold text-slate-900">Zero-Persistence Biometric Privacy</h3>
               <p className="mt-3 text-sm text-slate-600 leading-relaxed">
-                Guest selfies are processed strictly in RAM and never written to disk. Embeddings are scoped only to the requested event and purged on schedule.
+                Guest selfies are processed strictly in volatile RAM and never written to disk. Embeddings are scoped only to the requested event and purged on schedule.
               </p>
             </div>
 
@@ -268,11 +260,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Commercial SaaS Pricing */}
+      {/* Commercial SaaS Pricing (Image 2 - In Indian Rupees) */}
       <section id="pricing" className="py-20 border-t border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-6">
           <div className="text-center max-w-2xl mx-auto">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-blue-600">SaaS Pricing</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-blue-600">SAAS PRICING</h2>
             <p className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
               Transparent plans that scale with your shoots.
             </p>
@@ -300,15 +292,15 @@ export default function Home() {
               </Link>
             </div>
 
-            {/* Pro Studio Plan */}
+            {/* Pro Studio Plan (Indian Rupees) */}
             <div className="novus-card p-8 flex flex-col justify-between border-blue-600 shadow-xl shadow-blue-500/10 relative">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-sm">
                 Most Popular
               </div>
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Pro Studio</span>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-slate-900">$49</span>
+                  <span className="text-4xl font-extrabold text-slate-900">₹2,499</span>
                   <span className="text-sm font-semibold text-slate-500">/month</span>
                 </div>
                 <p className="mt-2 text-sm text-slate-600">For active wedding and event photography studios.</p>
@@ -329,12 +321,12 @@ export default function Home() {
               </Link>
             </div>
 
-            {/* Enterprise Plan */}
+            {/* Enterprise Plan (Indian Rupees) */}
             <div className="novus-card p-8 flex flex-col justify-between">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Enterprise</span>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-slate-900">$199</span>
+                  <span className="text-4xl font-extrabold text-slate-900">₹9,999</span>
                   <span className="text-sm font-semibold text-slate-500">/month</span>
                 </div>
                 <p className="mt-2 text-sm text-slate-600">For universities, conference organizers, and sports circuits.</p>
@@ -358,26 +350,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Global Footer */}
-      <footer className="border-t border-slate-200 bg-white py-12 mt-auto">
-        <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-sm">
-              NG
-            </div>
-            <span className="text-sm font-bold text-slate-900">NovusGrid Event Photos</span>
-            <span className="text-xs text-slate-400">© 2026 NovusGrid Technologies. All rights reserved.</span>
-          </div>
+      {/* NovusGrid Digital Suite Ecosystem Section (Image 3) */}
+      <div id="ecosystem" className="scroll-mt-16">
+        <EcosystemSection />
+      </div>
 
-          <div className="flex items-center gap-6 text-xs font-semibold text-slate-600">
-            <Link href="/privacy" className="hover:text-blue-600 transition">Biometric Privacy Policy</Link>
-            <Link href="/admin" className="hover:text-blue-600 transition">Studio Portal</Link>
-            <a href="https://github.com/sayan365/smartgallery" target="_blank" rel="noreferrer" className="hover:text-blue-600 transition">
-              Open Source Baseline
-            </a>
-          </div>
-        </div>
-      </footer>
+      {/* Global Comprehensive Footer (Image 4) */}
+      <GlobalFooter />
     </div>
   );
 }

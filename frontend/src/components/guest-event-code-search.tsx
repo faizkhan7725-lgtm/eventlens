@@ -1,12 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function GuestEventCodeSearch() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // Proactively wake up backend as soon as user opens homepage
+  useEffect(() => {
+    try {
+      fetch("https://eventlens-api.onrender.com/api/health", { mode: "no-cors" }).catch(() => {});
+    } catch {
+      // Ignore background warm-up errors
+    }
+  }, []);
+
+  function handleInputFocus() {
+    try {
+      fetch("https://eventlens-api.onrender.com/api/health", { mode: "no-cors" }).catch(() => {});
+    } catch {
+      // Ignore
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,6 +77,7 @@ export default function GuestEventCodeSearch() {
             <input
               type="text"
               value={code}
+              onFocus={handleInputFocus}
               onChange={(e) => {
                 setCode(e.target.value);
                 if (error) setError(null);
