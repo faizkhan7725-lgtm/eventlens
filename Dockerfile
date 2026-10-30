@@ -19,6 +19,10 @@ RUN pip install --no-cache-dir --upgrade pip
 COPY backend/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download and cache InsightFace buffalo_s models (detection + recognition) at build time
+# so the container starts with them ready in /root/.insightface/models/buffalo_s with zero download latency
+RUN python -c "from insightface.app import FaceAnalysis; app = FaceAnalysis(name='buffalo_s', allowed_modules=['detection', 'recognition'], providers=['CPUExecutionProvider']); app.prepare(ctx_id=0, det_size=(640, 640))"
+
 # Copy backend code and alembic migrations
 COPY backend/alembic.ini alembic.ini
 COPY backend/alembic ./alembic

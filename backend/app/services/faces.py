@@ -6,7 +6,7 @@ from io import BytesIO
 import cv2
 import numpy as np
 from insightface.app import FaceAnalysis
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.config import settings
 
@@ -16,6 +16,7 @@ def face_analysis(det_size: int | None = None) -> FaceAnalysis:
     size = det_size or settings.face_detection_size
     app = FaceAnalysis(
         name=settings.face_model_name,
+        allowed_modules=["detection", "recognition"],
         providers=["CPUExecutionProvider"],
     )
     app.prepare(ctx_id=0, det_size=(size, size))
@@ -23,53 +24,46 @@ def face_analysis(det_size: int | None = None) -> FaceAnalysis:
 
 
 def decode_image(image_bytes: bytes) -> np.ndarray:
+    """Decodes raw image bytes into an upright BGR OpenCV array with EXIF orientation transposed."""
     try:
         with Image.open(BytesIO(image_bytes)) as source:
+            source = ImageOps.exif_transpose(source)
             width, height = source.size
             if width <= 0 or height <= 0:
                 raise ValueError("Image dimensions are invalid")
             if width * height > settings.max_image_pixels:
                 raise ValueError("Image dimensions are too large")
-            if source.format not in {"JPEG", "PNG", "WEBP"}:
-                raise ValueError("Unsupported image format")
+            if source.mode != "RGB":
+                source = source.convert("RGB")
+            rgb = np.array(source)
+            return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
     except (UnidentifiedImageError, OSError) as exc:
         raise ValueError("Uploaded file is not a valid image") from exc
-
-    array = np.frombuffer(image_bytes, dtype=np.uint8)
-    image = cv2.imdecode(array, cv2.IMREAD_COLOR)
-    if image is None:
-        raise ValueError("Downloaded file could not be decoded as an image")
-    return image
-
-
-def _orient_for_detection(image: np.ndarray) -> np.ndarray:
-    """Rotate landscape selfies to portrait so face fills more of the det_size square.
-
-    Mobile cameras often encode images in landscape (width > height) even when
-    the phone is held portrait. InsightFace uses a square det_size window, so a
-    portrait crop gives the face more pixels and improves detection accuracy,
-    especially for small or off-angle faces from mobile cameras.
-    """
-    h, w = image.shape[:2]
-    if w > h:
-        image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-    return image
 
 
 def extract_faces(image_bytes: bytes):
     image = decode_image(image_bytes)
-    # Orient portrait for better mobile selfie detection
-    image = _orient_for_detection(image)
 
+    # 1. Primary detection with standard det_size
     faces = face_analysis().get(image)
     if faces:
         return faces
 
+    # 2. Try higher resolution detection if configured
     fallback_size = settings.face_detection_fallback_size
     if fallback_size > settings.face_detection_size:
-        return face_analysis(fallback_size).get(image)
+        faces = face_analysis(fallback_size).get(image)
+        if faces:
+            return faces
 
-    return faces
+    # 3. Fallback: If camera or browser stripped EXIF orientation, attempt 90, 270, 180 deg rotations
+    for rot in (cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE, cv2.ROTATE_180):
+        rotated = cv2.rotate(image, rot)
+        faces = face_analysis().get(rotated)
+        if faces:
+            return faces
+
+    return []
 
 
 def primary_face_embedding(image_bytes: bytes) -> list[float]:

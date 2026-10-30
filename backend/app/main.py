@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -5,9 +7,23 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.routers import auth, events, health, public
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Pre-warm face recognition model in memory at startup
+    try:
+        from app.services.faces import face_analysis
+
+        face_analysis()
+    except Exception as exc:
+        print(f"[lifespan] Warning: could not pre-warm face models: {exc}")
+    yield
+
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
+    lifespan=lifespan,
     openapi_url="/openapi.json" if settings.debug or settings.expose_api_docs else None,
     docs_url="/docs" if settings.debug or settings.expose_api_docs else None,
     redoc_url="/redoc" if settings.debug or settings.expose_api_docs else None,
