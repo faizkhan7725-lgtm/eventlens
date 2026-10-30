@@ -19,7 +19,7 @@ def face_analysis(det_size: int | None = None) -> FaceAnalysis:
         allowed_modules=["detection", "recognition"],
         providers=["CPUExecutionProvider"],
     )
-    app.prepare(ctx_id=0, det_size=(size, size))
+    app.prepare(ctx_id=-1, det_size=(size, size))
     return app
 
 
