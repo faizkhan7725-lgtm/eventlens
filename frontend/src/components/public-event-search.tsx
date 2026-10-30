@@ -63,9 +63,10 @@ export default function PublicEventSearch({ slug, ready }: Props) {
     if (!cameraOpen || !video || !stream) return;
 
     video.srcObject = stream;
-    const markReady = () => setCameraReady(true);
+    const markReady = () => { setCameraReady(true); };  // called by loadedmetadata or canplay, whichever fires first
     video.addEventListener("loadedmetadata", markReady);
     video.addEventListener("canplay", markReady);
+    if (video.readyState >= 3) { setCameraReady(true); }
     video.play().catch((err) => {
       setError(err instanceof Error ? err.message : "Camera preview could not start.");
     });
@@ -117,7 +118,7 @@ export default function PublicEventSearch({ slug, ready }: Props) {
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
+        video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
       streamRef.current = stream;
@@ -146,9 +147,9 @@ export default function PublicEventSearch({ slug, ready }: Props) {
       return;
     }
 
-    context.translate(canvas.width, 0);
-    context.scale(-1, 1);
+    // Draw without mirror - CSS -scale-x-100 handles display mirroring only
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // (line removed - no transform needed for capture)
     canvas.toBlob(
       (blob) => {
         if (!blob) {
@@ -301,8 +302,8 @@ export default function PublicEventSearch({ slug, ready }: Props) {
   }
 
   return (
-    <div className="space-y-8">
-      <form onSubmit={handleSubmit} className="novus-card p-6 sm:p-8 bg-white border border-slate-200">
+    <div className="space-y-4 sm:space-y-8">
+      <form onSubmit={handleSubmit} className="novus-card p-4 sm:p-6 lg:p-8 bg-white border border-slate-200">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <span className="novus-badge bg-blue-50 text-blue-700 border border-blue-200">
@@ -325,7 +326,7 @@ export default function PublicEventSearch({ slug, ready }: Props) {
         </div>
 
         {/* Search Mode Switcher (Mobile-First) */}
-        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl my-6">
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl my-4 sm:my-6">
           <button
             type="button"
             onClick={() => setSearchMode("selfie")}
@@ -470,17 +471,17 @@ export default function PublicEventSearch({ slug, ready }: Props) {
 
         {/* Live Camera Viewfinder */}
         {cameraOpen && (
-          <div className="mt-5 overflow-hidden rounded-2xl border border-slate-800 bg-black relative">
+          <div className="mt-5 overflow-hidden rounded-2xl border border-slate-800 bg-black relative w-full max-w-full">
             <video
               ref={videoRef}
               playsInline
               autoPlay
               muted
-              className="aspect-[4/3] w-full -scale-x-100 object-cover"
+              className="w-full max-h-[60vh] -scale-x-100 object-cover"
             />
             {/* Alignment Oval */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="w-48 h-64 rounded-full border-2 border-dashed border-white/60 shadow-2xl" />
+              <div className="w-[min(48vw,12rem)] h-[min(64vw,16rem)] rounded-full border-2 border-dashed border-white/60 shadow-2xl" />
             </div>
 
             <div className="absolute bottom-4 inset-x-4 flex items-center justify-center gap-3">
@@ -600,7 +601,7 @@ export default function PublicEventSearch({ slug, ready }: Props) {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
               {result.photos.map((photo, index) => {
                 const accessToken = encodeURIComponent(photo.access_token);
                 const thumbUrl = `${API_URL}/public/events/${slug}/photos/${photo.id}/thumbnail?token=${accessToken}`;

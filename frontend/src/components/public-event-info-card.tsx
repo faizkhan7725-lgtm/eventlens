@@ -27,7 +27,7 @@ export default function PublicEventInfoCard({ name, photosIndexed, ready, slug }
   if (!visible) return null;
 
   return (
-    <div className="lg:sticky lg:top-8">
+    <div className="lg:sticky lg:top-8 order-last lg:order-none">
       <div className="novus-card p-6 sm:p-8 bg-white border border-slate-200">
         <div className="flex items-center gap-2">
           <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse" />

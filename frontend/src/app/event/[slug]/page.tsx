@@ -9,7 +9,10 @@ type Props = {
 };
 
 async function getEvent(slug: string) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+  let apiUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://eventlens-api.onrender.com/api").trim().replace(/\/$/, "");
+  if (!apiUrl.endsWith("/api")) {
+    apiUrl = `${apiUrl}/api`;
+  }
   try {
     const res = await fetch(`${apiUrl}/public/events/${slug}`, {
       cache: "no-store",
@@ -81,8 +84,9 @@ export default async function EventPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-10">
-        <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-8 lg:py-10">
+        {/* Mobile: search first, info card below. Desktop: side-by-side */}
+        <section className="flex flex-col lg:grid lg:gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start gap-6">
           <PublicEventSearch slug={event.slug} ready={event.ready} />
           <PublicEventInfoCard
             name={event.name}

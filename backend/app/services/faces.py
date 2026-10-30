@@ -42,8 +42,25 @@ def decode_image(image_bytes: bytes) -> np.ndarray:
     return image
 
 
+def _orient_for_detection(image: np.ndarray) -> np.ndarray:
+    """Rotate landscape selfies to portrait so face fills more of the det_size square.
+
+    Mobile cameras often encode images in landscape (width > height) even when
+    the phone is held portrait. InsightFace uses a square det_size window, so a
+    portrait crop gives the face more pixels and improves detection accuracy,
+    especially for small or off-angle faces from mobile cameras.
+    """
+    h, w = image.shape[:2]
+    if w > h:
+        image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+    return image
+
+
 def extract_faces(image_bytes: bytes):
     image = decode_image(image_bytes)
+    # Orient portrait for better mobile selfie detection
+    image = _orient_for_detection(image)
+
     faces = face_analysis().get(image)
     if faces:
         return faces

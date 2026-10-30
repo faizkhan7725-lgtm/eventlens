@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
 
-    similarity_threshold: float = 0.45
+    similarity_threshold: float = 0.60
     max_search_results: int = 200
     face_model_name: str = "buffalo_s"
     face_detection_size: int = 640

@@ -27,5 +27,7 @@ services:
         value: supabase
       - key: FACE_MODEL_NAME
         value: buffalo_s
+      - key: SIMILARITY_THRESHOLD
+        value: "0.60"
       - key: SECRET_KEY
         generateValue: true
